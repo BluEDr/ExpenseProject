@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: expenses-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: expenses
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  api:
+    build:
+      context: ./api/Expenses.Api
+      dockerfile: Dockerfile
+    container_name: expenses-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Server=mysql;Port=3306;Database=expenses;User=appuser;Password=apppass;"
+      Jwt__SecretKey: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY_32_CHARS_MIN"
+      Jwt__Issuer: "Expenses.Api"
+      Jwt__Audience: "Expenses.Api.Client"
+      Jwt__AccessTokenMinutes: 30
+      Jwt__RefreshTokenDays: 30
+      Storage__AttachmentsPath: "/app/uploads"
+    ports:
+      - "5000:8080"
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - mysql
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: expenses-web
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  mysql_data:

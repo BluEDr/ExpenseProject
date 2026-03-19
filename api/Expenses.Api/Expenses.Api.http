@@ -1,0 +1,14 @@
+@Expenses.Api_HostAddress = http://localhost:5000
+
+### Register
+POST {{Expenses.Api_HostAddress}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "ChangeMe123!",
+  "currencyCode": "EUR",
+  "timeZoneId": "Europe/Athens"
+}
+
+###

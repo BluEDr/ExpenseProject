@@ -1,0 +1,30 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# Node
+**/node_modules/
+**/dist/
+
+# Logs
+*.log
+
+# User-specific
+**/.vs/
+*.user
+*.suo
+*.cache
+*.DS_Store
+
+# Secrets
+**/appsettings.*.json
+!**/appsettings.json
+
+# Uploads
+uploads/
+
+# Docker
+**/.docker/
+
+# OS
+Thumbs.db
