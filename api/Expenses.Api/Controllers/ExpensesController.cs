@@ -34,9 +34,22 @@ public class ExpensesController : ControllerBase
             return Unauthorized();
         }
 
-        var category = await _db.Categories
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId);
+        if (request.CategoryId != null)
+        {
+            var category = await _db.Categories
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId);
+
+            if (category == null)
+            {
+                return BadRequest("Category not found.");
+            }
+
+            if (category.Type != CategoryType.Expense)
+            {
+                return BadRequest("Category is not an expense category.");
+            }
+        }
 
         var expense = new Expense
         {
@@ -46,10 +59,6 @@ public class ExpensesController : ControllerBase
             Amount = request.Amount,
             Date = request.Date,
             Note = request.Note,
-            AttachmentPath = request.AttachmentPath,
-            AttachmentFileName = request.AttachmentFileName,
-            AttachmentContentType = request.AttachmentContentType,
-            AttachmentSize = request.AttachmentSize,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -62,11 +71,7 @@ public class ExpensesController : ControllerBase
             expense.CategoryId,
             expense.Amount,
             expense.Date,
-            expense.Note,
-            expense.AttachmentPath,
-            expense.AttachmentFileName,
-            expense.AttachmentContentType,
-            expense.AttachmentSize
+            expense.Note
         });
     }
 
@@ -94,11 +99,7 @@ public class ExpensesController : ControllerBase
             expense.CategoryId,
             expense.Amount,
             expense.Date,
-            expense.Note,
-            expense.AttachmentPath,
-            expense.AttachmentFileName,
-            expense.AttachmentContentType,
-            expense.AttachmentSize
+            expense.Note
         });
     }
 

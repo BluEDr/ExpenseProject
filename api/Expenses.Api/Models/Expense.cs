@@ -12,10 +12,7 @@ public class Expense : IAuditable
     public TransactionStatus Status { get; set; } = TransactionStatus.Confirmed;
     public string? Note { get; set; }
 
-    public string? AttachmentPath { get; set; }
-    public string? AttachmentFileName { get; set; }
-    public string? AttachmentContentType { get; set; }
-    public long? AttachmentSize { get; set; }
+    public ICollection<ExpenseAttachment> Attachments { get; set; } = new List<ExpenseAttachment>();
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;

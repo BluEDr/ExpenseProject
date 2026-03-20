@@ -1,5 +1,5 @@
 using System.Text;
-using Expenses.Api.Controllers;
+using Expenses.Api.Swagger;
 using Expenses.Api.Data;
 using Expenses.Api.Models;
 using Expenses.Api.Services;
@@ -103,7 +103,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-
-
-

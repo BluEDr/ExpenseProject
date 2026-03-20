@@ -10,6 +10,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<ExpenseAttachment> ExpenseAttachments => Set<ExpenseAttachment>();
     public DbSet<Income> Incomes => Set<Income>();
     public DbSet<IncomeSource> IncomeSources => Set<IncomeSource>();
     public DbSet<MonthlySummary> MonthlySummaries => Set<MonthlySummary>();
@@ -41,11 +42,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
             entity.Property(x => x.Note).HasMaxLength(500);
-            entity.Property(x => x.AttachmentPath).HasMaxLength(500);
-            entity.Property(x => x.AttachmentFileName).HasMaxLength(255);
-            entity.Property(x => x.AttachmentContentType).HasMaxLength(100);
             entity.Property(x => x.Status).HasDefaultValue(TransactionStatus.Confirmed);
             entity.HasIndex(x => new { x.UserId, x.Date });
+        });
+
+        builder.Entity<ExpenseAttachment>(entity =>
+        {
+            entity.Property(x => x.FileName).HasMaxLength(255).IsRequired();
+            entity.Property(x => x.StoredFilePath).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => new { x.UserId, x.ExpenseId });
+            entity.HasOne(x => x.Expense)
+                .WithMany(x => x.Attachments)
+                .HasForeignKey(x => x.ExpenseId);
         });
 
         builder.Entity<Income>(entity =>
