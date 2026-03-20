@@ -9,6 +9,7 @@ public class Expense : IAuditable
     public Category? Category { get; set; }
     public decimal Amount { get; set; }
     public DateOnly Date { get; set; }
+    public TransactionStatus Status { get; set; } = TransactionStatus.Confirmed;
     public string? Note { get; set; }
 
     public string? AttachmentPath { get; set; }

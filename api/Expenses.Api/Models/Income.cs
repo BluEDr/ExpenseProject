@@ -9,6 +9,7 @@ public class Income : IAuditable
     public Category? Category { get; set; }
     public decimal Amount { get; set; }
     public DateOnly Date { get; set; }
+    public TransactionStatus Status { get; set; } = TransactionStatus.Confirmed;
     public string? Note { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
