@@ -101,4 +101,21 @@ public class ExpensesController : ControllerBase
             expense.AttachmentSize
         });
     }
+
+    [HttpGet("total")]
+    public async Task<ActionResult<object>> GetTotal()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var total = await _db.Expenses
+            .AsNoTracking()
+            .Where(e => e.UserId == userId)
+            .SumAsync(e => (decimal?)e.Amount) ?? 0m;
+
+        return Ok(new { total });
+    }
 }

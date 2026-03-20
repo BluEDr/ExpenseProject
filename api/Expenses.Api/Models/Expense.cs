@@ -1,6 +1,6 @@
 namespace Expenses.Api.Models;
 
-public class Expense
+public class Expense : IAuditable
 {
     public Guid Id { get; set; }
     public string UserId { get; set; } = string.Empty;
@@ -17,4 +17,5 @@ public class Expense
     public long? AttachmentSize { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

@@ -1,6 +1,6 @@
 namespace Expenses.Api.Models;
 
-public class MonthlySummary
+public class MonthlySummary : IAuditable
 {
     public Guid Id { get; set; }
     public string UserId { get; set; } = string.Empty;
@@ -12,4 +12,5 @@ public class MonthlySummary
     public decimal ClosingBalance { get; set; }
     public decimal DailyAllowance { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

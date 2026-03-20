@@ -1,6 +1,6 @@
 namespace Expenses.Api.Models;
 
-public class Income
+public class Income : IAuditable
 {
     public Guid Id { get; set; }
     public string UserId { get; set; } = string.Empty;
@@ -11,4 +11,5 @@ public class Income
     public DateOnly Date { get; set; }
     public string? Note { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

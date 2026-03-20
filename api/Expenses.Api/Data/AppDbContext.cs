@@ -15,6 +15,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<MonthlySummary> MonthlySummaries => Set<MonthlySummary>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public override int SaveChanges()
+    {
+        ApplyAuditTimestamps();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ApplyAuditTimestamps();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -63,5 +75,23 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.TokenHash).HasMaxLength(200).IsRequired();
             entity.HasIndex(x => new { x.UserId, x.TokenHash }).IsUnique();
         });
+    }
+
+    private void ApplyAuditTimestamps()
+    {
+        var utcNow = DateTime.UtcNow;
+
+        foreach (var entry in ChangeTracker.Entries<IAuditable>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreatedAtUtc = utcNow;
+                entry.Entity.UpdatedAtUtc = utcNow;
+            }
+            else if (entry.State == EntityState.Modified)
+            {
+                entry.Entity.UpdatedAtUtc = utcNow;
+            }
+        }
     }
 }

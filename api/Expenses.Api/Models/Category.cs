@@ -1,6 +1,6 @@
 namespace Expenses.Api.Models;
 
-public class Category
+public class Category : IAuditable
 {
     public Guid Id { get; set; }
     public string UserId { get; set; } = string.Empty;
@@ -8,4 +8,5 @@ public class Category
     public string Name { get; set; } = string.Empty;
     public CategoryType Type { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
