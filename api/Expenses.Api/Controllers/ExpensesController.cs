@@ -115,6 +115,7 @@ public class ExpensesController : ControllerBase
         var total = await _db.Expenses
             .AsNoTracking()
             .Where(e => e.UserId == userId)
+            .Where(e => !e.IsDeleted)
             .SumAsync(e => (decimal?)e.Amount) ?? 0m;
 
         return Ok(new { total });
