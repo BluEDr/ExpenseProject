@@ -11,6 +11,8 @@ public class Income : IAuditable
     public DateOnly Date { get; set; }
     public TransactionStatus Status { get; set; } = TransactionStatus.Confirmed;
     public string? Note { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

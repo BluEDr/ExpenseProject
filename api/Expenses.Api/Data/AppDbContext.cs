@@ -35,7 +35,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Category>(entity =>
         {
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.IsDeleted).HasDefaultValue(false);
             entity.HasIndex(x => new { x.UserId, x.Name, x.Type }).IsUnique();
+            entity.HasQueryFilter(x => !x.IsDeleted);
         });
 
         builder.Entity<Expense>(entity =>
@@ -43,7 +45,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
             entity.Property(x => x.Note).HasMaxLength(500);
             entity.Property(x => x.Status).HasDefaultValue(TransactionStatus.Confirmed);
+            entity.Property(x => x.IsDeleted).HasDefaultValue(false);
             entity.HasIndex(x => new { x.UserId, x.Date });
+            entity.HasQueryFilter(x => !x.IsDeleted);
         });
 
         builder.Entity<ExpenseAttachment>(entity =>
@@ -62,14 +66,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
             entity.Property(x => x.Note).HasMaxLength(500);
             entity.Property(x => x.Status).HasDefaultValue(TransactionStatus.Confirmed);
+            entity.Property(x => x.IsDeleted).HasDefaultValue(false);
             entity.HasIndex(x => new { x.UserId, x.Date });
+            entity.HasQueryFilter(x => !x.IsDeleted);
         });
 
         builder.Entity<IncomeSource>(entity =>
         {
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.MonthlyAmount).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.IsDeleted).HasDefaultValue(false);
             entity.HasIndex(x => new { x.UserId, x.Name }).IsUnique();
+            entity.HasQueryFilter(x => !x.IsDeleted);
         });
 
         builder.Entity<MonthlySummary>(entity =>
@@ -102,6 +110,34 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             else if (entry.State == EntityState.Modified)
             {
                 entry.Entity.UpdatedAtUtc = utcNow;
+            }
+        }
+
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State != EntityState.Modified)
+            {
+                continue;
+            }
+
+            var isDeletedProperty = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "IsDeleted");
+            var deletedAtProperty = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "DeletedAtUtc");
+
+            if (isDeletedProperty == null || deletedAtProperty == null)
+            {
+                continue;
+            }
+
+            var isDeleted = isDeletedProperty.CurrentValue as bool?;
+            var deletedAt = deletedAtProperty.CurrentValue as DateTime?;
+
+            if (isDeleted == true && deletedAt == null)
+            {
+                deletedAtProperty.CurrentValue = utcNow;
+            }
+            else if (isDeleted == false && deletedAt != null)
+            {
+                deletedAtProperty.CurrentValue = null;
             }
         }
     }
