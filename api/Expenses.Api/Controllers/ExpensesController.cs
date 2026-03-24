@@ -103,8 +103,12 @@ public class ExpensesController : ControllerBase
         });
     }
 
-    [HttpGet("total")]
-    public async Task<ActionResult<object>> GetTotal()
+    [HttpGet]
+    public async Task<ActionResult<object>> List(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] int? limit,
+        [FromQuery] int? offset)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId))
@@ -112,12 +116,108 @@ public class ExpensesController : ControllerBase
             return Unauthorized();
         }
 
-        var total = await _db.Expenses
+        var take = limit.GetValueOrDefault(50);
+        var skip = offset.GetValueOrDefault(0);
+        if (take <= 0 || take > 500)
+        {
+            return BadRequest("Limit must be between 1 and 500.");
+        }
+
+        if (skip < 0)
+        {
+            return BadRequest("Offset must be 0 or greater.");
+        }
+
+        var query = _db.Expenses
+            .AsNoTracking()
+            .Where(e => e.UserId == userId)
+            .Where(e => !e.IsDeleted);
+
+        if (from != null)
+        {
+            query = query.Where(e => e.Date >= from);
+        }
+
+        if (to != null)
+        {
+            query = query.Where(e => e.Date <= to);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(e => e.Date)
+            .ThenByDescending(e => e.CreatedAtUtc)
+            .Skip(skip)
+            .Take(take)
+            .Select(e => new
+            {
+                e.Id,
+                e.CategoryId,
+                e.Amount,
+                e.Date,
+                e.Note,
+                e.Status,
+                e.CreatedAtUtc
+            })
+            .ToListAsync();
+        var pageCount = items.Count;
+
+        return Ok(new { totalCount, pageCount, items });
+    }
+
+    [HttpGet("summary")]
+    public async Task<ActionResult<object>> Summary(
+        [FromQuery] int? year,
+        [FromQuery] int? month,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        DateOnly start;
+        DateOnly end;
+
+        if (year.HasValue || month.HasValue)
+        {
+            if (!year.HasValue || !month.HasValue)
+            {
+                return BadRequest("Both year and month are required.");
+            }
+
+            if (month < 1 || month > 12)
+            {
+                return BadRequest("Month must be between 1 and 12.");
+            }
+
+            start = new DateOnly(year.Value, month.Value, 1);
+            end = start.AddMonths(1).AddDays(-1);
+        }
+        else if (from.HasValue || to.HasValue)
+        {
+            start = from ?? DateOnly.MinValue;
+            end = to ?? DateOnly.MaxValue;
+        }
+        else
+        {
+            var now = DateTime.Now;
+            start = new DateOnly(now.Year, now.Month, 1);
+            end = start.AddMonths(1).AddDays(-1);
+        }
+
+        var query = _db.Expenses
             .AsNoTracking()
             .Where(e => e.UserId == userId)
             .Where(e => !e.IsDeleted)
-            .SumAsync(e => (decimal?)e.Amount) ?? 0m;
+            .Where(e => e.Date >= start && e.Date <= end);
 
-        return Ok(new { total });
+        var total = await query.SumAsync(e => (decimal?)e.Amount) ?? 0m;
+        var count = await query.CountAsync();
+
+        return Ok(new { total, count, from = start, to = end });
     }
 }
