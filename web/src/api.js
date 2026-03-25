@@ -1,4 +1,14 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
+function resolveApiBase() {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  const apiPort = import.meta.env.VITE_API_PORT ?? "5000";
+  const { protocol, hostname } = window.location;
+  return `${protocol}//${hostname}:${apiPort}`;
+}
+
+const API_BASE = resolveApiBase();
 
 function joinUrl(path) {
   return `${API_BASE}${path}`;
