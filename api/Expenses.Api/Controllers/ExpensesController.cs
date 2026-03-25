@@ -121,7 +121,7 @@ public class ExpensesController : ControllerBase
 
         var expense = await _db.Expenses
             .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
-        Console.WriteLine(expense.Date);
+
         if (expense == null)
         {
             return NotFound();
