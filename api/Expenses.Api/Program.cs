@@ -10,8 +10,19 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+const string FrontendCorsPolicy = "FrontendCorsPolicy";
 
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -97,6 +108,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 
