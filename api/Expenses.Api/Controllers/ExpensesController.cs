@@ -99,8 +99,97 @@ public class ExpensesController : ControllerBase
             expense.CategoryId,
             expense.Amount,
             expense.Date,
-            expense.Note
+            expense.Note,
+            expense.Status,
+            expense.CreatedAtUtc
         });
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<object>> Update(Guid id, [FromBody] ExpenseUpdateRequest request)
+    {
+        if (request.Amount <= 0)
+        {
+            return BadRequest("Amount must be greater than zero.");
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var expense = await _db.Expenses
+            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
+        Console.WriteLine(expense.Date);
+        if (expense == null)
+        {
+            return NotFound();
+        }
+
+        if (request.CategoryId != null)
+        {
+            var category = await _db.Categories
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId);
+
+            if (category == null)
+            {
+                return BadRequest("Category not found.");
+            }
+
+            if (category.Type != CategoryType.Expense)
+            {
+                return BadRequest("Category is not an expense category.");
+            }
+        }
+
+        expense.CategoryId = request.CategoryId ?? expense.CategoryId;
+        expense.Amount = request.Amount;
+        expense.Date = request.Date ?? expense.Date;
+        expense.Note = request.Note ?? expense.Note;
+        expense.Status = request.Status ?? expense.Status;
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            expense.Id,
+            expense.CategoryId,
+            expense.Amount,
+            expense.Date,
+            expense.Note,
+            expense.Status,
+            expense.CreatedAtUtc
+        });
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> SoftDelete(Guid id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var expense = await _db.Expenses
+            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
+
+        if (expense == null)
+        {
+            return NotFound();
+        }
+
+        if (expense.IsDeleted)
+        {
+            return NoContent();
+        }
+
+        expense.IsDeleted = true;
+        await _db.SaveChangesAsync();
+
+        return NoContent();
     }
 
     [HttpGet]

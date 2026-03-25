@@ -1,3 +1,5 @@
+using Expenses.Api.Models;
+
 namespace Expenses.Api.Dtos;
 
 public record ExpenseCreateRequest(
@@ -5,4 +7,12 @@ public record ExpenseCreateRequest(
     decimal Amount,
     DateOnly Date,
     string? Note
+);
+
+public record ExpenseUpdateRequest(
+    Guid? CategoryId,
+    decimal Amount,
+    DateOnly? Date,
+    string? Note,
+    TransactionStatus? Status
 );
