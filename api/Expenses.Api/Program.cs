@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Expenses.Api.Swagger;
 using Expenses.Api.Data;
 using Expenses.Api.Models;
@@ -13,7 +14,11 @@ var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
 var configuredCorsOrigins = builder.Configuration["Cors:AllowedOrigins"];
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
