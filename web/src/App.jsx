@@ -1,4 +1,4 @@
-import { useEffect, useState, startTransition } from "react";
+import { useEffect, useMemo, useState, startTransition } from "react";
 import "./App.css";
 import { authRequest, clearSession, createApiClient, loadSession, saveSession } from "./api";
 
@@ -26,6 +26,17 @@ const emptyIncomeSource = {
   note: "",
 };
 
+const defaultDashboard = {
+  expenses: [],
+  incomes: [],
+  incomeSources: [],
+  expenseMeta: { totalCount: 0, pageCount: 0 },
+  incomeMeta: { totalCount: 0, pageCount: 0 },
+  monthSummary: null,
+  runningDay: null,
+  todaySummary: null,
+};
+
 function App() {
   const [session, setSessionState] = useState(() => loadSession());
   const [authMode, setAuthMode] = useState("login");
@@ -40,17 +51,45 @@ function App() {
   const [expenseForm, setExpenseForm] = useState(emptyExpense);
   const [incomeForm, setIncomeForm] = useState(emptyIncome);
   const [incomeSourceForm, setIncomeSourceForm] = useState(emptyIncomeSource);
-  const [dashboard, setDashboard] = useState({
-    expenses: [],
-    incomes: [],
-    incomeSources: [],
-    expenseMeta: { totalCount: 0, pageCount: 0 },
-    incomeMeta: { totalCount: 0, pageCount: 0 },
-    monthSummary: null,
-    runningDay: null,
-  });
+  const [dashboard, setDashboard] = useState(defaultDashboard);
   const [feedback, setFeedback] = useState({ type: "", message: "" });
   const [busy, setBusy] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [quickAmount, setQuickAmount] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [quickStatus, setQuickStatus] = useState("");
+  const [revealedMetrics, setRevealedMetrics] = useState(() => ({
+    monthlyBalance: false,
+    dailyBalance: false,
+    allowedToday: false,
+    spentSoFar: false,
+    todayCount: false,
+  }));
+
+  const today = useMemo(() => todayValue(), []);
+  const todayLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      }).format(new Date()),
+    [],
+  );
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [month, dayNumber, session]);
+
+  useEffect(() => {
+    setRevealedMetrics({
+      monthlyBalance: false,
+      dailyBalance: false,
+      allowedToday: false,
+      spentSoFar: false,
+      todayCount: false,
+    });
+  }, [month, dayNumber, session]);
 
   function setSession(nextSession) {
     setSessionState(nextSession);
@@ -82,12 +121,13 @@ function App() {
       setFeedback({ type: "", message: "" });
 
       try {
-        const [expenses, incomes, incomeSources, monthSummary, runningDay] = await Promise.all([
-          api.get("/api/v1/expenses?limit=20&offset=0"),
-          api.get("/api/v1/incomes?limit=20&offset=0"),
+        const [expenses, incomes, incomeSources, monthSummary, runningDay, todaySummary] = await Promise.all([
+          api.get("/api/v1/expenses?limit=8&offset=0"),
+          api.get("/api/v1/incomes?limit=8&offset=0"),
           api.get("/api/v1/income-sources"),
           api.get(`/api/v1/summaries/${month}`),
           api.get(`/api/v1/summaries/${month}/day/${dayNumber}`),
+          api.get(`/api/v1/expenses/summary?from=${today}&to=${today}`),
         ]);
 
         if (cancelled) {
@@ -103,6 +143,7 @@ function App() {
             incomeMeta: { totalCount: incomes.totalCount ?? 0, pageCount: incomes.pageCount ?? 0 },
             monthSummary,
             runningDay,
+            todaySummary,
           });
         });
       } catch (error) {
@@ -121,7 +162,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [session, month, dayNumber]);
+  }, [dayNumber, month, reloadKey, session, today]);
 
   async function handleAuthSubmit(event) {
     event.preventDefault();
@@ -165,6 +206,28 @@ function App() {
     );
   }
 
+  async function handleQuickExpenseSubmit() {
+    if (!quickAmount || Number(quickAmount) <= 0) {
+      setFeedback({ type: "error", message: "Enter an amount before adding the expense." });
+      return;
+    }
+
+    await submitEntity(
+      "/api/v1/expenses",
+      {
+        categoryId: null,
+        amount: Number(quickAmount),
+        date: today,
+        note: null,
+      },
+      "Expense added from numpad.",
+      () => {
+        setQuickAmount("");
+        setQuickStatus("OK. Expense added.");
+      },
+    );
+  }
+
   async function handleCreateIncome(event) {
     event.preventDefault();
     await submitEntity(
@@ -200,12 +263,13 @@ function App() {
   async function submitEntity(path, payload, message, resetForm) {
     setBusy(true);
     setFeedback({ type: "", message: "" });
+    setQuickStatus("");
 
     try {
       await api.post(path, payload);
       resetForm();
       setFeedback({ type: "success", message });
-      setSession({ ...session });
+      setReloadKey((value) => value + 1);
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
     } finally {
@@ -220,7 +284,7 @@ function App() {
     try {
       await api.delete(path);
       setFeedback({ type: "success", message });
-      setSession({ ...session });
+      setReloadKey((value) => value + 1);
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
     } finally {
@@ -238,15 +302,36 @@ function App() {
     }
 
     setSession(null);
-    setDashboard({
-      expenses: [],
-      incomes: [],
-      incomeSources: [],
-      expenseMeta: { totalCount: 0, pageCount: 0 },
-      incomeMeta: { totalCount: 0, pageCount: 0 },
-      monthSummary: null,
-      runningDay: null,
+    setDashboard(defaultDashboard);
+    setQuickAmount("");
+    setMenuOpen(false);
+    setQuickStatus("");
+  }
+
+  function handleNumpadInput(key) {
+    setQuickAmount((current) => {
+      if (key === "clear") {
+        return "";
+      }
+
+      if (key === "backspace") {
+        return current.slice(0, -1);
+      }
+
+      if (key === ".") {
+        return current.includes(".") ? current : `${current || "0"}.`;
+      }
+
+      if (current === "0") {
+        return key;
+      }
+
+      return `${current}${key}`;
     });
+  }
+
+  function revealMetric(key) {
+    setRevealedMetrics((current) => ({ ...current, [key]: true }));
   }
 
   if (!session?.accessToken) {
@@ -330,85 +415,173 @@ function App() {
   }
 
   return (
-    <main className="shell">
-      <header className="topbar">
+    <main className="shell shell-mobile-first">
+      <header className="topbar topbar-mobile">
         <div>
           <p className="eyebrow">Expense Project</p>
-          <h1>Operational budget console</h1>
+          <p className="muted">{todayLabel}</p>
         </div>
-        <div className="topbar-actions">
-          <span className="session-pill">{session.email}</span>
-          <button type="button" onClick={handleLogout}>
-            Logout
+        <div className="menu-anchor">
+          <button
+            type="button"
+            className="burger-button"
+            aria-label="Open account menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((value) => !value)}
+          >
+            <span />
+            <span />
+            <span />
           </button>
+          {menuOpen ? (
+            <div className="burger-menu">
+              <p className="eyebrow">Account</p>
+              <strong>{session.email}</strong>
+              <span className="muted">Month {formatYearMonth(month)}</span>
+              <button type="button" onClick={handleLogout}>
+                Logout
+              </button>
+            </div>
+          ) : null}
         </div>
       </header>
 
       {feedback.message && <p className={`feedback ${feedback.type}`}>{feedback.message}</p>}
 
-      <section className="grid">
-        <article className="panel panel-wide">
-          <div className="panel-header">
-            <div>
-              <p className="eyebrow">Month Summary</p>
-              <h2>{formatYearMonth(month)}</h2>
-            </div>
-            <div className="summary-controls">
-              <label>
-                Month
-                <input
-                  type="month"
-                  value={toMonthInput(month)}
-                  onChange={(event) => setMonth(fromMonthInput(event.target.value))}
-                />
-              </label>
-              <label>
-                Running day
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={dayNumber}
-                  onChange={(event) => setDayNumber(Number(event.target.value))}
-                />
-              </label>
-            </div>
+      <section className="mobile-home-grid mobile-home-grid-priority">
+        <article className="panel quick-add-panel quick-add-panel-priority">
+          <div className="numpad-display-wrap">
+            <span className="numpad-caption">Amount for {todayLabel}</span>
+            <input
+              className="numpad-display"
+              value={quickAmount ? formatMoney(quickAmount) : "EUR 0.00"}
+              readOnly
+              inputMode="none"
+              aria-label="Quick expense amount"
+            />
           </div>
 
-          <div className="summary-grid">
-            <MetricCard title="Recurring income" value={dashboard.monthSummary?.incomeSourcesTotal} />
-            <MetricCard title="Extra income" value={dashboard.monthSummary?.incomesTotal} />
-            <MetricCard title="Expenses" value={dashboard.monthSummary?.expensesTotal} negative />
-            <MetricCard title="Monthly balance" value={dashboard.monthSummary?.monthlyBalance} />
-            <MetricCard title="Daily allowance" value={dashboard.monthSummary?.dailyAllowance} />
-            <MetricCard title="Running delta" value={dashboard.runningDay?.net} />
+          <div className="hero-metrics-grid hero-metrics-grid-compact">
+            <MetricCard
+              title="Running delta"
+              value={dashboard.runningDay?.net}
+              tone={metricTone(dashboard.runningDay?.net)}
+            />
+            <MetricCard title="Expenses today" value={dashboard.todaySummary?.total} negative />
+            <PrivacyMetricCard
+              title="Monthly balance"
+              value={dashboard.monthSummary?.monthlyBalance}
+              revealed={revealedMetrics.monthlyBalance}
+              onReveal={() => revealMetric("monthlyBalance")}
+              emphasis
+            />
+            <PrivacyMetricCard
+              title="Daily balance"
+              value={dashboard.monthSummary?.dailyAllowance}
+              revealed={revealedMetrics.dailyBalance}
+              onReveal={() => revealMetric("dailyBalance")}
+            />
           </div>
 
-          <div className="running-day">
-            <h3>Running day snapshot</h3>
-            {dashboard.runningDay ? (
-              <dl className="day-grid">
-                <SummaryRow label="Date" value={dashboard.runningDay.date} />
-                <SummaryRow label="Day expense" value={formatMoney(dashboard.runningDay.expense)} />
-                <SummaryRow
-                  label="Cumulative expenses"
-                  value={formatMoney(dashboard.runningDay.cumulativeExpenses)}
-                />
-                <SummaryRow
-                  label="Allowed until day"
-                  value={formatMoney(dashboard.runningDay.allowedUntilDay)}
-                />
-                <SummaryRow label="Net" value={formatMoney(dashboard.runningDay.net)} />
-              </dl>
-            ) : (
-              <p className="muted">No running day summary loaded.</p>
-            )}
+          <div className="numpad-grid">
+            {["7", "8", "9", "4", "5", "6", "1", "2", "3", ".", "0"].map((key) => (
+              <button
+                key={key}
+                type="button"
+                className="numpad-key"
+                onClick={() => handleNumpadInput(key)}
+              >
+                {key}
+              </button>
+            ))}
+            <button type="button" className="numpad-key numpad-key-accent" onClick={() => handleNumpadInput("backspace")}>
+              Del
+            </button>
+          </div>
+
+          <div className="quick-actions">
+            <button type="button" className="primary quick-submit" disabled={busy} onClick={handleQuickExpenseSubmit}>
+              {busy ? "Saving..." : "Add expense"}
+            </button>
+          </div>
+          {quickStatus ? <p className="quick-status">{quickStatus}</p> : null}
+        </article>
+
+        <article className="panel mobile-hero">
+          <div className="mobile-hero-header">
+          <div>
+            <p className="eyebrow">Control panel</p>
+            <h2>{formatYearMonth(month)}</h2>
+          </div>
+          <div className="summary-controls summary-controls-compact">
+            <label>
+              Month
+              <input
+                type="month"
+                value={toMonthInput(month)}
+                onChange={(event) => setMonth(fromMonthInput(event.target.value))}
+              />
+            </label>
+            <label>
+              Day
+              <input
+                type="number"
+                min="1"
+                max={dashboard.monthSummary?.daysInMonth ?? 31}
+                value={dayNumber}
+                onChange={(event) => setDayNumber(Number(event.target.value))}
+              />
+            </label>
+          </div>
+          </div>
+
+          <div className="snapshot-strip">
+            <PrivacySnapshotPill
+              label="Allowed today"
+              value={formatMoney(dashboard.runningDay?.allowedUntilDay)}
+              revealed={revealedMetrics.allowedToday}
+              onReveal={() => revealMetric("allowedToday")}
+            />
+            <PrivacySnapshotPill
+              label="Spent so far"
+              value={formatMoney(dashboard.runningDay?.cumulativeExpenses)}
+              revealed={revealedMetrics.spentSoFar}
+              onReveal={() => revealMetric("spentSoFar")}
+            />
+            <PrivacySnapshotPill
+              label="Today count"
+              value={`${dashboard.todaySummary?.count ?? 0} entries`}
+              revealed={revealedMetrics.todayCount}
+              onReveal={() => revealMetric("todayCount")}
+            />
           </div>
         </article>
 
+        <article className="panel running-panel">
+          <div className="panel-header panel-header-tight">
+            <div>
+              <p className="eyebrow">Running day</p>
+              <h2>Budget pace</h2>
+            </div>
+          </div>
+          {dashboard.runningDay ? (
+            <dl className="day-grid day-grid-mobile">
+              <SummaryRow label="Date" value={dashboard.runningDay.date} />
+              <SummaryRow label="Expense today" value={formatMoney(dashboard.runningDay.expense)} />
+              <SummaryRow label="Cumulative expenses" value={formatMoney(dashboard.runningDay.cumulativeExpenses)} />
+              <SummaryRow label="Allowed until day" value={formatMoney(dashboard.runningDay.allowedUntilDay)} />
+              <SummaryRow label="Running delta" value={formatMoney(dashboard.runningDay.net)} />
+            </dl>
+          ) : (
+            <p className="muted">No running day summary loaded.</p>
+          )}
+        </article>
+      </section>
+
+      <section className="grid dashboard-secondary-grid">
         <FormPanel
           title="Add Expense"
-          subtitle="Optional category, confirmed spending by default."
+          subtitle="Detailed entry"
           onSubmit={handleCreateExpense}
         >
           <label>
@@ -435,9 +608,7 @@ function App() {
             Category id
             <input
               value={expenseForm.categoryId}
-              onChange={(event) =>
-                setExpenseForm({ ...expenseForm, categoryId: event.target.value })
-              }
+              onChange={(event) => setExpenseForm({ ...expenseForm, categoryId: event.target.value })}
               placeholder="Optional GUID"
             />
           </label>
@@ -455,7 +626,7 @@ function App() {
 
         <FormPanel
           title="Add Income"
-          subtitle="Use confirmed for real cash flow."
+          subtitle="Confirmed cash flow"
           onSubmit={handleCreateIncome}
         >
           <label>
@@ -493,9 +664,7 @@ function App() {
             Category id
             <input
               value={incomeForm.categoryId}
-              onChange={(event) =>
-                setIncomeForm({ ...incomeForm, categoryId: event.target.value })
-              }
+              onChange={(event) => setIncomeForm({ ...incomeForm, categoryId: event.target.value })}
               placeholder="Optional GUID"
             />
           </label>
@@ -513,16 +682,14 @@ function App() {
 
         <FormPanel
           title="Add Income Source"
-          subtitle="Recurring monthly source such as salary."
+          subtitle="Recurring monthly source"
           onSubmit={handleCreateIncomeSource}
         >
           <label>
             Name
             <input
               value={incomeSourceForm.name}
-              onChange={(event) =>
-                setIncomeSourceForm({ ...incomeSourceForm, name: event.target.value })
-              }
+              onChange={(event) => setIncomeSourceForm({ ...incomeSourceForm, name: event.target.value })}
               required
             />
           </label>
@@ -533,9 +700,7 @@ function App() {
               min="0"
               step="0.01"
               value={incomeSourceForm.monthlyAmount}
-              onChange={(event) =>
-                setIncomeSourceForm({ ...incomeSourceForm, monthlyAmount: event.target.value })
-              }
+              onChange={(event) => setIncomeSourceForm({ ...incomeSourceForm, monthlyAmount: event.target.value })}
               required
             />
           </label>
@@ -544,9 +709,7 @@ function App() {
             <input
               type="date"
               value={incomeSourceForm.startDate}
-              onChange={(event) =>
-                setIncomeSourceForm({ ...incomeSourceForm, startDate: event.target.value })
-              }
+              onChange={(event) => setIncomeSourceForm({ ...incomeSourceForm, startDate: event.target.value })}
               required
             />
           </label>
@@ -555,18 +718,14 @@ function App() {
             <input
               type="date"
               value={incomeSourceForm.endDate}
-              onChange={(event) =>
-                setIncomeSourceForm({ ...incomeSourceForm, endDate: event.target.value })
-              }
+              onChange={(event) => setIncomeSourceForm({ ...incomeSourceForm, endDate: event.target.value })}
             />
           </label>
           <label>
             Note
             <textarea
               value={incomeSourceForm.note}
-              onChange={(event) =>
-                setIncomeSourceForm({ ...incomeSourceForm, note: event.target.value })
-              }
+              onChange={(event) => setIncomeSourceForm({ ...incomeSourceForm, note: event.target.value })}
             />
           </label>
           <button className="primary" type="submit" disabled={busy}>
@@ -575,9 +734,9 @@ function App() {
         </FormPanel>
       </section>
 
-      <section className="grid">
+      <section className="grid data-grid">
         <DataPanel
-          title={`Expenses (${dashboard.expenseMeta.pageCount}/${dashboard.expenseMeta.totalCount})`}
+          title={`Recent expenses (${dashboard.expenseMeta.pageCount}/${dashboard.expenseMeta.totalCount})`}
           items={dashboard.expenses}
           emptyText="No expenses yet."
           onDelete={(item) => handleDelete(`/api/v1/expenses/${item.id}`, "Expense archived.")}
@@ -591,7 +750,7 @@ function App() {
         />
 
         <DataPanel
-          title={`Incomes (${dashboard.incomeMeta.pageCount}/${dashboard.incomeMeta.totalCount})`}
+          title={`Recent incomes (${dashboard.incomeMeta.pageCount}/${dashboard.incomeMeta.totalCount})`}
           items={dashboard.incomes}
           emptyText="No incomes yet."
           onDelete={(item) => handleDelete(`/api/v1/incomes/${item.id}`, "Income archived.")}
@@ -608,9 +767,7 @@ function App() {
           title="Income sources"
           items={dashboard.incomeSources}
           emptyText="No recurring sources yet."
-          onDelete={(item) =>
-            handleDelete(`/api/v1/income-sources/${item.id}`, "Income source archived.")
-          }
+          onDelete={(item) => handleDelete(`/api/v1/income-sources/${item.id}`, "Income source archived.")}
           renderItem={(item) => (
             <>
               <strong>{item.name}</strong>
@@ -666,12 +823,47 @@ function DataPanel({ title, items, emptyText, renderItem, onDelete }) {
   );
 }
 
-function MetricCard({ title, value, negative = false }) {
+function MetricCard({ title, value, negative = false, emphasis = false, tone = "default" }) {
   return (
-    <article className={`metric ${negative ? "metric-negative" : ""}`}>
+    <article className={`metric ${negative ? "metric-negative" : ""} ${emphasis ? "metric-emphasis" : ""} metric-${tone}`}>
       <span>{title}</span>
       <strong>{formatMoney(value)}</strong>
     </article>
+  );
+}
+
+function PrivacyMetricCard({ title, value, revealed, onReveal, emphasis = false }) {
+  if (revealed) {
+    return <MetricCard title={title} value={value} emphasis={emphasis} />;
+  }
+
+  return (
+    <button type="button" className={`metric metric-private ${emphasis ? "metric-emphasis" : ""}`} onClick={onReveal}>
+      <span>{title}</span>
+      <strong>Tap to reveal</strong>
+    </button>
+  );
+}
+
+function SnapshotPill({ label, value }) {
+  return (
+    <div className="snapshot-pill">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function PrivacySnapshotPill({ label, value, revealed, onReveal }) {
+  if (revealed) {
+    return <SnapshotPill label={label} value={value} />;
+  }
+
+  return (
+    <button type="button" className="snapshot-pill snapshot-pill-private" onClick={onReveal}>
+      <span>{label}</span>
+      <strong>Tap to reveal</strong>
+    </button>
   );
 }
 
@@ -728,6 +920,14 @@ function formatYearMonth(yearMonth) {
 
 function todayValue() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function metricTone(value) {
+  if (value == null || Number.isNaN(Number(value))) {
+    return "default";
+  }
+
+  return Number(value) < 0 ? "danger" : "success";
 }
 
 export default App;
