@@ -438,6 +438,33 @@
   color: var(--text-strong);
 }
 
+.item-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.icon-button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 10px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-button-danger {
+  color: var(--danger);
+  border-color: rgba(168, 65, 43, 0.25);
+  background: rgba(168, 65, 43, 0.08);
+}
+
 .dashboard-secondary-grid,
 .data-grid {
   align-items: start;

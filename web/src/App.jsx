@@ -51,6 +51,9 @@ function App() {
   const [expenseForm, setExpenseForm] = useState(emptyExpense);
   const [incomeForm, setIncomeForm] = useState(emptyIncome);
   const [incomeSourceForm, setIncomeSourceForm] = useState(emptyIncomeSource);
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const [editingIncomeId, setEditingIncomeId] = useState(null);
+  const [editingIncomeSourceId, setEditingIncomeSourceId] = useState(null);
   const [dashboard, setDashboard] = useState(defaultDashboard);
   const [feedback, setFeedback] = useState({ type: "", message: "" });
   const [busy, setBusy] = useState(false);
@@ -194,17 +197,28 @@ function App() {
 
   async function handleCreateExpense(event) {
     event.preventDefault();
-    await submitEntity(
-      "/api/v1/expenses",
-      {
-        categoryId: trimToNull(expenseForm.categoryId),
-        amount: Number(expenseForm.amount),
-        date: expenseForm.date,
-        note: trimToNull(expenseForm.note),
-      },
-      "Expense added.",
-      () => setExpenseForm(emptyExpense),
-    );
+    const payload = {
+      categoryId: trimToNull(expenseForm.categoryId),
+      amount: Number(expenseForm.amount),
+      date: expenseForm.date,
+      note: trimToNull(expenseForm.note),
+    };
+
+    if (editingExpenseId) {
+      await submitEntity(
+        `/api/v1/expenses/${editingExpenseId}`,
+        payload,
+        "Expense updated.",
+        () => {
+          setExpenseForm(emptyExpense);
+          setEditingExpenseId(null);
+        },
+        "put",
+      );
+      return;
+    }
+
+    await submitEntity("/api/v1/expenses", payload, "Expense added.", () => setExpenseForm(emptyExpense));
   }
 
   async function handleQuickExpenseSubmit() {
@@ -213,14 +227,34 @@ function App() {
       return;
     }
 
+    const payload = {
+      categoryId: trimToNull(expenseForm.categoryId),
+      amount: Number(quickAmount),
+      date: editingExpenseId ? expenseForm.date : today,
+      note: trimToNull(quickNote),
+      status: expenseForm.status,
+    };
+
+    if (editingExpenseId) {
+      await submitEntity(
+        `/api/v1/expenses/${editingExpenseId}`,
+        payload,
+        "Expense updated from numpad.",
+        () => {
+          setQuickAmount("");
+          setQuickNote("");
+          setExpenseForm(emptyExpense);
+          setEditingExpenseId(null);
+          setQuickStatus("OK. Expense updated.");
+        },
+        "put",
+      );
+      return;
+    }
+
     await submitEntity(
       "/api/v1/expenses",
-      {
-        categoryId: null,
-        amount: Number(quickAmount),
-        date: today,
-        note: trimToNull(quickNote),
-      },
+      payload,
       "Expense added from numpad.",
       () => {
         setQuickAmount("");
@@ -232,43 +266,69 @@ function App() {
 
   async function handleCreateIncome(event) {
     event.preventDefault();
-    await submitEntity(
-      "/api/v1/incomes",
-      {
-        categoryId: trimToNull(incomeForm.categoryId),
-        amount: Number(incomeForm.amount),
-        date: incomeForm.date,
-        note: trimToNull(incomeForm.note),
-        status: incomeForm.status,
-      },
-      "Income added.",
-      () => setIncomeForm(emptyIncome),
-    );
+    const payload = {
+      categoryId: trimToNull(incomeForm.categoryId),
+      amount: Number(incomeForm.amount),
+      date: incomeForm.date,
+      note: trimToNull(incomeForm.note),
+      status: incomeForm.status,
+    };
+
+    if (editingIncomeId) {
+      await submitEntity(
+        `/api/v1/incomes/${editingIncomeId}`,
+        payload,
+        "Income updated.",
+        () => {
+          setIncomeForm(emptyIncome);
+          setEditingIncomeId(null);
+        },
+        "put",
+      );
+      return;
+    }
+
+    await submitEntity("/api/v1/incomes", payload, "Income added.", () => setIncomeForm(emptyIncome));
   }
 
   async function handleCreateIncomeSource(event) {
     event.preventDefault();
-    await submitEntity(
-      "/api/v1/income-sources",
-      {
-        name: incomeSourceForm.name.trim(),
-        monthlyAmount: Number(incomeSourceForm.monthlyAmount),
-        startDate: incomeSourceForm.startDate,
-        endDate: trimToNull(incomeSourceForm.endDate),
-        note: trimToNull(incomeSourceForm.note),
-      },
-      "Income source added.",
-      () => setIncomeSourceForm(emptyIncomeSource),
-    );
+    const payload = {
+      name: incomeSourceForm.name.trim(),
+      monthlyAmount: Number(incomeSourceForm.monthlyAmount),
+      startDate: incomeSourceForm.startDate,
+      endDate: trimToNull(incomeSourceForm.endDate),
+      note: trimToNull(incomeSourceForm.note),
+    };
+
+    if (editingIncomeSourceId) {
+      await submitEntity(
+        `/api/v1/income-sources/${editingIncomeSourceId}`,
+        payload,
+        "Income source updated.",
+        () => {
+          setIncomeSourceForm(emptyIncomeSource);
+          setEditingIncomeSourceId(null);
+        },
+        "put",
+      );
+      return;
+    }
+
+    await submitEntity("/api/v1/income-sources", payload, "Income source added.", () => setIncomeSourceForm(emptyIncomeSource));
   }
 
-  async function submitEntity(path, payload, message, resetForm) {
+  async function submitEntity(path, payload, message, resetForm, method = "post") {
     setBusy(true);
     setFeedback({ type: "", message: "" });
     setQuickStatus("");
 
     try {
-      await api.post(path, payload);
+      if (method === "put") {
+        await api.put(path, payload);
+      } else {
+        await api.post(path, payload);
+      }
       resetForm();
       setFeedback({ type: "success", message });
       setReloadKey((value) => value + 1);
@@ -307,6 +367,12 @@ function App() {
     setDashboard(defaultDashboard);
     setQuickAmount("");
     setQuickNote("");
+    setExpenseForm(emptyExpense);
+    setIncomeForm(emptyIncome);
+    setIncomeSourceForm(emptyIncomeSource);
+    setEditingExpenseId(null);
+    setEditingIncomeId(null);
+    setEditingIncomeSourceId(null);
     setMenuOpen(false);
     setQuickStatus("");
   }
@@ -335,6 +401,45 @@ function App() {
 
   function revealMetric(key) {
     setRevealedMetrics((current) => ({ ...current, [key]: true }));
+  }
+
+  function startExpenseEdit(item) {
+    setEditingExpenseId(item.id);
+    setQuickAmount(`${item.amount ?? ""}`);
+    setQuickNote(item.note ?? "");
+    setExpenseForm({
+      amount: `${item.amount ?? ""}`,
+      date: item.date,
+      note: item.note ?? "",
+      categoryId: item.categoryId ?? "",
+      status: item.status ?? "Confirmed",
+    });
+    setFeedback({ type: "success", message: "Expense loaded into quick edit." });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function startIncomeEdit(item) {
+    setEditingIncomeId(item.id);
+    setIncomeForm({
+      amount: `${item.amount ?? ""}`,
+      date: item.date,
+      note: item.note ?? "",
+      categoryId: item.categoryId ?? "",
+      status: item.status ?? "Confirmed",
+    });
+    setFeedback({ type: "success", message: "Income loaded for editing." });
+  }
+
+  function startIncomeSourceEdit(item) {
+    setEditingIncomeSourceId(item.id);
+    setIncomeSourceForm({
+      name: item.name ?? "",
+      monthlyAmount: `${item.monthlyAmount ?? ""}`,
+      startDate: item.startDate,
+      endDate: item.endDate ?? "",
+      note: item.note ?? "",
+    });
+    setFeedback({ type: "success", message: "Income source loaded for editing." });
   }
 
   if (!session?.accessToken) {
@@ -514,11 +619,26 @@ function App() {
 
           <div className="quick-actions">
             <button type="button" className="primary quick-submit" disabled={busy} onClick={handleQuickExpenseSubmit}>
-              {busy ? "Saving..." : "Add expense"}
+              {busy ? "Saving..." : editingExpenseId ? "Update expense" : "Add expense"}
             </button>
           </div>
           {quickStatus ? <p className="quick-status">{quickStatus}</p> : null}
         </article>
+
+        <DataPanel
+          title={`Recent expenses (${dashboard.expenseMeta.pageCount}/${dashboard.expenseMeta.totalCount})`}
+          items={dashboard.expenses}
+          emptyText="No expenses yet."
+          onDelete={(item) => handleDelete(`/api/v1/expenses/${item.id}`, "Expense archived.")}
+          onEdit={startExpenseEdit}
+          renderItem={(item) => (
+            <>
+              <strong>{formatMoney(item.amount)}</strong>
+              <span>{item.date}</span>
+              <span>{item.note || "No note"}</span>
+            </>
+          )}
+        />
 
         <article className="panel mobile-hero">
           <div className="mobile-hero-header">
@@ -594,7 +714,7 @@ function App() {
       <section className="grid dashboard-secondary-grid">
         <FormPanel
           title="Add Expense"
-          subtitle="Detailed entry"
+          subtitle={editingExpenseId ? "Update expense" : "Detailed entry"}
           onSubmit={handleCreateExpense}
         >
           <label>
@@ -633,13 +753,18 @@ function App() {
             />
           </label>
           <button className="primary" type="submit" disabled={busy}>
-            Add expense
+            {editingExpenseId ? "Update expense" : "Add expense"}
           </button>
+          {editingExpenseId ? (
+            <button type="button" className="ghost" onClick={() => { setExpenseForm(emptyExpense); setEditingExpenseId(null); }}>
+              Cancel edit
+            </button>
+          ) : null}
         </FormPanel>
 
         <FormPanel
           title="Add Income"
-          subtitle="Confirmed cash flow"
+          subtitle={editingIncomeId ? "Update income" : "Confirmed cash flow"}
           onSubmit={handleCreateIncome}
         >
           <label>
@@ -689,13 +814,18 @@ function App() {
             />
           </label>
           <button className="primary" type="submit" disabled={busy}>
-            Add income
+            {editingIncomeId ? "Update income" : "Add income"}
           </button>
+          {editingIncomeId ? (
+            <button type="button" className="ghost" onClick={() => { setIncomeForm(emptyIncome); setEditingIncomeId(null); }}>
+              Cancel edit
+            </button>
+          ) : null}
         </FormPanel>
 
         <FormPanel
           title="Add Income Source"
-          subtitle="Recurring monthly source"
+          subtitle={editingIncomeSourceId ? "Update recurring source" : "Recurring monthly source"}
           onSubmit={handleCreateIncomeSource}
         >
           <label>
@@ -742,31 +872,23 @@ function App() {
             />
           </label>
           <button className="primary" type="submit" disabled={busy}>
-            Add source
+            {editingIncomeSourceId ? "Update source" : "Add source"}
           </button>
+          {editingIncomeSourceId ? (
+            <button type="button" className="ghost" onClick={() => { setIncomeSourceForm(emptyIncomeSource); setEditingIncomeSourceId(null); }}>
+              Cancel edit
+            </button>
+          ) : null}
         </FormPanel>
       </section>
 
       <section className="grid data-grid">
         <DataPanel
-          title={`Recent expenses (${dashboard.expenseMeta.pageCount}/${dashboard.expenseMeta.totalCount})`}
-          items={dashboard.expenses}
-          emptyText="No expenses yet."
-          onDelete={(item) => handleDelete(`/api/v1/expenses/${item.id}`, "Expense archived.")}
-          renderItem={(item) => (
-            <>
-              <strong>{formatMoney(item.amount)}</strong>
-              <span>{item.date}</span>
-              <span>{item.note || "No note"}</span>
-            </>
-          )}
-        />
-
-        <DataPanel
           title={`Recent incomes (${dashboard.incomeMeta.pageCount}/${dashboard.incomeMeta.totalCount})`}
           items={dashboard.incomes}
           emptyText="No incomes yet."
           onDelete={(item) => handleDelete(`/api/v1/incomes/${item.id}`, "Income archived.")}
+          onEdit={startIncomeEdit}
           renderItem={(item) => (
             <>
               <strong>{formatMoney(item.amount)}</strong>
@@ -781,6 +903,7 @@ function App() {
           items={dashboard.incomeSources}
           emptyText="No recurring sources yet."
           onDelete={(item) => handleDelete(`/api/v1/income-sources/${item.id}`, "Income source archived.")}
+          onEdit={startIncomeSourceEdit}
           renderItem={(item) => (
             <>
               <strong>{item.name}</strong>
@@ -812,7 +935,7 @@ function FormPanel({ title, subtitle, onSubmit, children }) {
   );
 }
 
-function DataPanel({ title, items, emptyText, renderItem, onDelete }) {
+function DataPanel({ title, items, emptyText, renderItem, onDelete, onEdit }) {
   return (
     <article className="panel">
       <div className="panel-header">
@@ -825,14 +948,45 @@ function DataPanel({ title, items, emptyText, renderItem, onDelete }) {
           {items.map((item) => (
             <li key={item.id}>
               <div className="data-item">{renderItem(item)}</div>
-              <button type="button" className="ghost" onClick={() => onDelete(item)}>
-                Archive
-              </button>
+              <div className="item-actions">
+                {onEdit ? (
+                  <button type="button" className="icon-button" aria-label="Edit item" title="Edit" onClick={() => onEdit(item)}>
+                    <EditIcon />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="icon-button icon-button-danger"
+                  aria-label="Archive item"
+                  title="Archive"
+                  onClick={() => onDelete(item)}
+                >
+                  <DeleteIcon />
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       )}
     </article>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 16.25V20h3.75L18.81 8.94l-3.75-3.75L4 16.25Z" fill="currentColor" />
+      <path d="m20.71 7.04-3.75-3.75-1.42 1.41 3.75 3.75 1.42-1.41Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 3h6l1 2h4v2H4V5h4l1-2Z" fill="currentColor" />
+      <path d="M6 9h12l-1 11H7L6 9Z" fill="currentColor" />
+    </svg>
   );
 }
 
