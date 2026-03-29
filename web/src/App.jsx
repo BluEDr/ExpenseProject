@@ -56,6 +56,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [quickAmount, setQuickAmount] = useState("");
+  const [quickNote, setQuickNote] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [quickStatus, setQuickStatus] = useState("");
   const [revealedMetrics, setRevealedMetrics] = useState(() => ({
@@ -218,11 +219,12 @@ function App() {
         categoryId: null,
         amount: Number(quickAmount),
         date: today,
-        note: null,
+        note: trimToNull(quickNote),
       },
       "Expense added from numpad.",
       () => {
         setQuickAmount("");
+        setQuickNote("");
         setQuickStatus("OK. Expense added.");
       },
     );
@@ -304,6 +306,7 @@ function App() {
     setSession(null);
     setDashboard(defaultDashboard);
     setQuickAmount("");
+    setQuickNote("");
     setMenuOpen(false);
     setQuickStatus("");
   }
@@ -498,6 +501,16 @@ function App() {
               Del
             </button>
           </div>
+
+          <label className="quick-note-field">
+            <input
+              type="text"
+              value={quickNote}
+              onChange={(event) => setQuickNote(event.target.value)}
+              placeholder="Optional note"
+              aria-label="Expense note"
+            />
+          </label>
 
           <div className="quick-actions">
             <button type="button" className="primary quick-submit" disabled={busy} onClick={handleQuickExpenseSubmit}>

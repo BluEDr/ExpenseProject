@@ -315,6 +315,13 @@
   background: rgba(15, 107, 104, 0.12);
 }
 
+.quick-note-field {
+  display: grid;
+  gap: 8px;
+  color: var(--text-strong);
+  font-size: 0.92rem;
+}
+
 .quick-actions {
   justify-content: flex-end;
 }
