@@ -1,3 +1,40 @@
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.auth-brand-lockup {
+  margin-bottom: 18px;
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 58px;
+}
+
+.brand-logo {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.brand-title {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.brand-copy .muted {
+  margin: 2px 0 0;
+  line-height: 1.2;
+}
 .shell {
   width: min(1380px, calc(100vw - 24px));
   margin: 0 auto;
@@ -486,6 +523,19 @@
 }
 
 @media (max-width: 760px) {
+  .brand-copy {
+    min-height: 50px;
+  }
+
+  .brand-logo {
+    width: 50px;
+    height: 50px;
+  }
+
+  .brand-title {
+    font-size: 0.94rem;
+  }
+
   .shell,
   .shell-mobile-first {
     width: min(100vw - 16px, 100%);
@@ -579,5 +629,9 @@
 .theme-toggle:hover {
   border-color: var(--brand);
 }
+
+
+
+
 
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, startTransition } from "react";
 import "./App.css";
+import logo from "./assets/logo.png";
 import { authRequest, clearSession, createApiClient, loadSession, saveSession } from "./api";
 
 const emptyExpense = {
@@ -452,7 +453,12 @@ function App() {
     return (
       <main className="shell auth-shell">
         <section className="auth-panel">
-          <p className="eyebrow">Expense Project</p>
+          <div className="brand-lockup auth-brand-lockup">
+            <img className="brand-logo" src={logo} alt="Expense Manager logo" />
+            <div className="brand-copy">
+              <p className="brand-title">Expense Manager</p>
+            </div>
+          </div>
           <h1>Control cash flow without leaving the month blind.</h1>
           <p className="lede">
             This client talks directly to your ASP.NET API. Log in, then manage expenses,
@@ -531,9 +537,12 @@ function App() {
   return (
     <main className="shell shell-mobile-first">
       <header className="topbar topbar-mobile">
-        <div>
-          <p className="eyebrow">Expense Project</p>
-          <p className="muted">{todayLabel}</p>
+        <div className="brand-lockup">
+          <img className="brand-logo" src={logo} alt="Expense Manager logo" />
+          <div className="brand-copy">
+            <p className="brand-title">Expense Manager</p>
+            <p className="muted">{todayLabel}</p>
+          </div>
         </div>
         <div className="menu-anchor">
           <button
@@ -1120,4 +1129,10 @@ function metricTone(value) {
 }
 
 export default App;
+
+
+
+
+
+
 
