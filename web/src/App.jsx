@@ -69,6 +69,7 @@ function App() {
     spentSoFar: false,
     todayCount: false,
   }));
+  const [theme, setTheme] = useState(() => loadTheme());
 
   const today = useMemo(() => todayValue(), []);
   const todayLabel = useMemo(
@@ -94,6 +95,11 @@ function App() {
       todayCount: false,
     });
   }, [month, dayNumber, session]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("expense-project-theme", theme);
+  }, [theme]);
 
   function setSession(nextSession) {
     setSessionState(nextSession);
@@ -546,6 +552,13 @@ function App() {
               <p className="eyebrow">Account</p>
               <strong>{session.email}</strong>
               <span className="muted">Month {formatYearMonth(month)}</span>
+              <button
+                type="button"
+                className="theme-toggle"
+                onClick={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
+              >
+                {theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+              </button>
               <button type="button" onClick={handleLogout}>
                 Logout
               </button>
@@ -1089,6 +1102,15 @@ function todayValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function loadTheme() {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  const storedTheme = window.localStorage.getItem("expense-project-theme");
+  return storedTheme === "dark" ? "dark" : "light";
+}
+
 function metricTone(value) {
   if (value == null || Number.isNaN(Number(value))) {
     return "default";
@@ -1098,3 +1120,4 @@ function metricTone(value) {
 }
 
 export default App;
+

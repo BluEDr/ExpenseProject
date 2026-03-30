@@ -5,20 +5,53 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #1f221e;
-  background:
-    radial-gradient(circle at top left, rgba(226, 168, 92, 0.25), transparent 30%),
-    linear-gradient(180deg, #f6f1e9 0%, #efe2cc 52%, #e7d4b4 100%);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --brand: #0f6b68;
-  --brand-deep: #0a4542;
-  --text-strong: #1f221e;
-  --text-muted: #6d645a;
-  --danger: #a8412b;
-  --success: #0a6652;
+  color-scheme: light;
+  --brand: #2f78d8;
+  --brand-strong: #245fb3;
+  --brand-deep: #1b427f;
+  --text-strong: #12243d;
+  --text-muted: #5d6f89;
+  --danger: #b64949;
+  --success: #1f7ab8;
+  --surface-1: rgba(248, 252, 255, 0.95);
+  --surface-2: rgba(237, 245, 255, 0.96);
+  --surface-3: rgba(223, 236, 255, 0.92);
+  --surface-4: rgba(210, 228, 252, 0.9);
+  --border-soft: rgba(18, 36, 61, 0.12);
+  --shadow-strong: rgba(20, 48, 92, 0.14);
+  --shell-bg:
+    radial-gradient(circle at top left, rgba(119, 177, 245, 0.28), transparent 32%),
+    radial-gradient(circle at top right, rgba(79, 139, 224, 0.18), transparent 28%),
+    linear-gradient(180deg, #f3f8ff 0%, #e6f0ff 54%, #d9e8ff 100%);
+  --theme-toggle-bg: rgba(47, 120, 216, 0.08);
+  --theme-toggle-border: rgba(47, 120, 216, 0.22);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --brand: #76b6ff;
+  --brand-strong: #5b99ea;
+  --brand-deep: #2f78d8;
+  --text-strong: #eef5ff;
+  --text-muted: #a8bddc;
+  --danger: #ff8f8f;
+  --success: #79c8ff;
+  --surface-1: rgba(13, 24, 40, 0.96);
+  --surface-2: rgba(18, 33, 55, 0.97);
+  --surface-3: rgba(24, 43, 70, 0.94);
+  --surface-4: rgba(31, 55, 88, 0.92);
+  --border-soft: rgba(118, 182, 255, 0.2);
+  --shadow-strong: rgba(0, 0, 0, 0.35);
+  --shell-bg:
+    radial-gradient(circle at top left, rgba(118, 182, 255, 0.16), transparent 30%),
+    radial-gradient(circle at top right, rgba(47, 120, 216, 0.2), transparent 26%),
+    linear-gradient(180deg, #07111f 0%, #0d1d35 48%, #12294a 100%);
+  --theme-toggle-bg: rgba(118, 182, 255, 0.12);
+  --theme-toggle-border: rgba(118, 182, 255, 0.28);
 }
 
 * {
@@ -35,6 +68,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
+  color: var(--text-strong);
+  background: var(--shell-bg);
 }
 
 button,
@@ -46,24 +81,27 @@ textarea {
 
 button {
   border-radius: 14px;
-  border: 1px solid rgba(31, 34, 30, 0.14);
+  border: 1px solid var(--border-soft);
   padding: 0.7rem 1rem;
-  background: rgba(255, 250, 242, 0.92);
+  background: var(--surface-1);
   color: var(--text-strong);
   cursor: pointer;
   transition:
     transform 180ms ease,
     background-color 180ms ease,
-    border-color 180ms ease;
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 button:hover {
   transform: translateY(-1px);
-  border-color: rgba(15, 107, 104, 0.4);
+  border-color: rgba(47, 120, 216, 0.46);
+  box-shadow: 0 10px 24px rgba(47, 120, 216, 0.14);
 }
 
 button.primary {
-  background: var(--brand);
+  background: linear-gradient(135deg, var(--brand), var(--brand-strong));
   color: white;
   border-color: transparent;
 }
@@ -76,11 +114,16 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid rgba(31, 34, 30, 0.14);
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 0.75rem 0.85rem;
-  background: rgba(255, 252, 246, 0.96);
+  background: var(--surface-1);
   color: var(--text-strong);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
 }
 
 textarea {
@@ -99,3 +142,4 @@ p {
   min-height: 100vh;
   overflow-x: hidden;
 }
+
