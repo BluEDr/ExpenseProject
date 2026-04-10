@@ -596,8 +596,8 @@ function App() {
           <div className="hero-metrics-grid hero-metrics-grid-compact">
             <MetricCard
               title="Running delta"
-              value={dashboard.runningDay?.net}
-              tone={metricTone(dashboard.runningDay?.net)}
+              value={dashboard.runningDay?.runningBalance}
+              tone={metricTone(dashboard.runningDay?.runningBalance)}
             />
             <MetricCard title="Expenses today" value={dashboard.todaySummary?.total} negative />
             <PrivacyMetricCard
@@ -728,7 +728,7 @@ function App() {
               <SummaryRow label="Expense today" value={formatMoney(dashboard.runningDay.expense)} />
               <SummaryRow label="Cumulative expenses" value={formatMoney(dashboard.runningDay.cumulativeExpenses)} />
               <SummaryRow label="Allowed until day" value={formatMoney(dashboard.runningDay.allowedUntilDay)} />
-              <SummaryRow label="Running delta" value={formatMoney(dashboard.runningDay.net)} />
+              <SummaryRow label="Running delta" value={formatMoney(dashboard.runningDay.runningBalance)} />
             </dl>
           ) : (
             <p className="muted">No running day summary loaded.</p>
