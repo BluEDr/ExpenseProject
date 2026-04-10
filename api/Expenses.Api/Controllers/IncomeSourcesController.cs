@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Expenses.Api.Data;
 using Expenses.Api.Models;
+using Expenses.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace Expenses.Api.Controllers;
 public class IncomeSourcesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly MonthlySummaryService _monthlySummaryService;
 
-    public IncomeSourcesController(AppDbContext db)
+    public IncomeSourcesController(AppDbContext db, MonthlySummaryService monthlySummaryService)
     {
         _db = db;
+        _monthlySummaryService = monthlySummaryService;
     }
 
     [HttpGet]
@@ -80,7 +83,7 @@ public class IncomeSourcesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<object>> Create([FromBody] IncomeSourceCreateRequest request)
+    public async Task<ActionResult<object>> Create([FromBody] IncomeSourceCreateRequest request, CancellationToken cancellationToken)
     {
         if (request.MonthlyAmount <= 0)
         {
@@ -99,7 +102,7 @@ public class IncomeSourcesController : ControllerBase
         }
 
         var exists = await _db.IncomeSources
-            .AnyAsync(x => x.UserId == userId && x.Name == request.Name);
+            .AnyAsync(x => x.UserId == userId && x.Name == request.Name, cancellationToken);
 
         if (exists)
         {
@@ -118,7 +121,8 @@ public class IncomeSourcesController : ControllerBase
         };
 
         _db.IncomeSources.Add(item);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, ToMonthStart(item.StartDate), cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, new
         {
@@ -134,7 +138,7 @@ public class IncomeSourcesController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<object>> Update(Guid id, [FromBody] IncomeSourceUpdateRequest request)
+    public async Task<ActionResult<object>> Update(Guid id, [FromBody] IncomeSourceUpdateRequest request, CancellationToken cancellationToken)
     {
         if (request.MonthlyAmount <= 0)
         {
@@ -153,15 +157,17 @@ public class IncomeSourcesController : ControllerBase
         }
 
         var item = await _db.IncomeSources
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken);
 
         if (item == null)
         {
             return NotFound();
         }
 
+        var originalStartMonth = ToMonthStart(item.StartDate);
+
         var nameExists = await _db.IncomeSources
-            .AnyAsync(x => x.UserId == userId && x.Name == request.Name && x.Id != id);
+            .AnyAsync(x => x.UserId == userId && x.Name == request.Name && x.Id != id, cancellationToken);
 
         if (nameExists)
         {
@@ -174,7 +180,10 @@ public class IncomeSourcesController : ControllerBase
         item.EndDate = request.EndDate;
         item.Note = request.Note;
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var affectedMonth = MinMonth(originalStartMonth, ToMonthStart(item.StartDate));
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, affectedMonth, cancellationToken);
 
         return Ok(new
         {
@@ -190,7 +199,7 @@ public class IncomeSourcesController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> SoftDelete(Guid id)
+    public async Task<IActionResult> SoftDelete(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId))
@@ -199,7 +208,7 @@ public class IncomeSourcesController : ControllerBase
         }
 
         var item = await _db.IncomeSources
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken);
 
         if (item == null)
         {
@@ -212,10 +221,15 @@ public class IncomeSourcesController : ControllerBase
         }
 
         item.IsDeleted = true;
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, ToMonthStart(item.StartDate), cancellationToken);
 
         return NoContent();
     }
+
+    private static DateOnly ToMonthStart(DateOnly date) => new(date.Year, date.Month, 1);
+
+    private static DateOnly MinMonth(DateOnly left, DateOnly right) => left <= right ? left : right;
 }
 
 public record IncomeSourceCreateRequest(

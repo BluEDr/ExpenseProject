@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Expenses.Api.Data;
 using Expenses.Api.Models;
+using Expenses.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace Expenses.Api.Controllers;
 public class IncomesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly MonthlySummaryService _monthlySummaryService;
 
-    public IncomesController(AppDbContext db)
+    public IncomesController(AppDbContext db, MonthlySummaryService monthlySummaryService)
     {
         _db = db;
+        _monthlySummaryService = monthlySummaryService;
     }
 
     [HttpGet]
@@ -113,7 +116,7 @@ public class IncomesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<object>> Create([FromBody] IncomeCreateRequest request)
+    public async Task<ActionResult<object>> Create([FromBody] IncomeCreateRequest request, CancellationToken cancellationToken)
     {
         if (request.Amount <= 0)
         {
@@ -130,7 +133,7 @@ public class IncomesController : ControllerBase
         {
             var category = await _db.Categories
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId, cancellationToken);
 
             if (category == null)
             {
@@ -156,7 +159,8 @@ public class IncomesController : ControllerBase
         };
 
         _db.Incomes.Add(income);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, ToMonthStart(income.Date), cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = income.Id }, new
         {
@@ -171,7 +175,7 @@ public class IncomesController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<object>> Update(Guid id, [FromBody] IncomeUpdateRequest request)
+    public async Task<ActionResult<object>> Update(Guid id, [FromBody] IncomeUpdateRequest request, CancellationToken cancellationToken)
     {
         if (request.Amount <= 0)
         {
@@ -185,18 +189,20 @@ public class IncomesController : ControllerBase
         }
 
         var income = await _db.Incomes
-            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
+            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId, cancellationToken);
 
         if (income == null)
         {
             return NotFound();
         }
 
+        var originalMonth = ToMonthStart(income.Date);
+
         if (request.CategoryId != null)
         {
             var category = await _db.Categories
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId, cancellationToken);
 
             if (category == null)
             {
@@ -215,7 +221,10 @@ public class IncomesController : ControllerBase
         income.Note = request.Note;
         income.Status = request.Status ?? income.Status;
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var affectedMonth = MinMonth(originalMonth, ToMonthStart(income.Date));
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, affectedMonth, cancellationToken);
 
         return Ok(new
         {
@@ -230,7 +239,7 @@ public class IncomesController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> SoftDelete(Guid id)
+    public async Task<IActionResult> SoftDelete(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId))
@@ -239,7 +248,7 @@ public class IncomesController : ControllerBase
         }
 
         var income = await _db.Incomes
-            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
+            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId, cancellationToken);
 
         if (income == null)
         {
@@ -252,10 +261,15 @@ public class IncomesController : ControllerBase
         }
 
         income.IsDeleted = true;
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, ToMonthStart(income.Date), cancellationToken);
 
         return NoContent();
     }
+
+    private static DateOnly ToMonthStart(DateOnly date) => new(date.Year, date.Month, 1);
+
+    private static DateOnly MinMonth(DateOnly left, DateOnly right) => left <= right ? left : right;
 }
 
 public record IncomeCreateRequest(

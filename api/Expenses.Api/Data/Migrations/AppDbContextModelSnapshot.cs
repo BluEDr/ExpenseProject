@@ -349,6 +349,9 @@ namespace Expenses.Api.Data.Migrations
                     b.Property<int>("Month")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("StartingBalance")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("TotalExpense")
                         .HasColumnType("decimal(18,2)");
 

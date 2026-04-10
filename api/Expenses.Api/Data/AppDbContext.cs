@@ -82,6 +82,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<MonthlySummary>(entity =>
         {
+            entity.Property(x => x.StartingBalance).HasColumnType("decimal(18,2)");
             entity.Property(x => x.TotalIncome).HasColumnType("decimal(18,2)");
             entity.Property(x => x.TotalExpense).HasColumnType("decimal(18,2)");
             entity.Property(x => x.ClosingBalance).HasColumnType("decimal(18,2)");

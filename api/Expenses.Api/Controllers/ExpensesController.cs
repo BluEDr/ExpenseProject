@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Expenses.Api.Data;
 using Expenses.Api.Dtos;
 using Expenses.Api.Models;
+using Expenses.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,14 +15,16 @@ namespace Expenses.Api.Controllers;
 public class ExpensesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly MonthlySummaryService _monthlySummaryService;
 
-    public ExpensesController(AppDbContext db)
+    public ExpensesController(AppDbContext db, MonthlySummaryService monthlySummaryService)
     {
         _db = db;
+        _monthlySummaryService = monthlySummaryService;
     }
 
     [HttpPost]
-    public async Task<ActionResult<object>> Create(ExpenseCreateRequest request)
+    public async Task<ActionResult<object>> Create(ExpenseCreateRequest request, CancellationToken cancellationToken)
     {
         if (request.Amount <= 0)
         {
@@ -38,7 +41,7 @@ public class ExpensesController : ControllerBase
         {
             var category = await _db.Categories
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId, cancellationToken);
 
             if (category == null)
             {
@@ -63,7 +66,8 @@ public class ExpensesController : ControllerBase
         };
 
         _db.Expenses.Add(expense);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, ToMonthStart(expense.Date), cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = expense.Id }, new
         {
@@ -106,7 +110,7 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<object>> Update(Guid id, [FromBody] ExpenseUpdateRequest request)
+    public async Task<ActionResult<object>> Update(Guid id, [FromBody] ExpenseUpdateRequest request, CancellationToken cancellationToken)
     {
         if (request.Amount <= 0)
         {
@@ -120,18 +124,20 @@ public class ExpensesController : ControllerBase
         }
 
         var expense = await _db.Expenses
-            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
+            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId, cancellationToken);
 
         if (expense == null)
         {
             return NotFound();
         }
 
+        var originalMonth = ToMonthStart(expense.Date);
+
         if (request.CategoryId != null)
         {
             var category = await _db.Categories
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.UserId == userId, cancellationToken);
 
             if (category == null)
             {
@@ -150,7 +156,10 @@ public class ExpensesController : ControllerBase
         expense.Note = request.Note ?? expense.Note;
         expense.Status = request.Status ?? expense.Status;
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var affectedMonth = MinMonth(originalMonth, ToMonthStart(expense.Date));
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, affectedMonth, cancellationToken);
 
         return Ok(new
         {
@@ -165,7 +174,7 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> SoftDelete(Guid id)
+    public async Task<IActionResult> SoftDelete(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId))
@@ -174,7 +183,7 @@ public class ExpensesController : ControllerBase
         }
 
         var expense = await _db.Expenses
-            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
+            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId, cancellationToken);
 
         if (expense == null)
         {
@@ -187,7 +196,8 @@ public class ExpensesController : ControllerBase
         }
 
         expense.IsDeleted = true;
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, ToMonthStart(expense.Date), cancellationToken);
 
         return NoContent();
     }
@@ -309,4 +319,8 @@ public class ExpensesController : ControllerBase
 
         return Ok(new { total, count, from = start, to = end });
     }
+
+    private static DateOnly ToMonthStart(DateOnly date) => new(date.Year, date.Month, 1);
+
+    private static DateOnly MinMonth(DateOnly left, DateOnly right) => left <= right ? left : right;
 }

@@ -1,26 +1,26 @@
 using System.Security.Claims;
-using Expenses.Api.Data;
-using Expenses.Api.Models;
+using Expenses.Api.Dtos;
+using Expenses.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Expenses.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/summaries")]
+[Route("api/v1/monthly-summaries")]
 [Authorize]
 public class SummaryController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly MonthlySummaryService _monthlySummaryService;
 
-    public SummaryController(AppDbContext db)
+    public SummaryController(MonthlySummaryService monthlySummaryService)
     {
-        _db = db;
+        _monthlySummaryService = monthlySummaryService;
     }
 
     [HttpGet("{yearMonth}")]
-    public async Task<ActionResult<object>> GetMonthSummary(string yearMonth)
+    public async Task<ActionResult<MonthlySummaryResponse>> GetMonthSummary(string yearMonth, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId))
@@ -33,12 +33,119 @@ public class SummaryController : ControllerBase
             return BadRequest("yearMonth must be in YYYYMM format.");
         }
 
-        var summary = await BuildMonthSummaryAsync(userId, start);
+        var summary = await _monthlySummaryService.GetMonthAsync(userId, start, cancellationToken);
         return Ok(summary);
     }
 
+    [HttpPost("{yearMonth}")]
+    public async Task<ActionResult<EnsureMonthlySummaryResponse>> CreateMonthSummary(string yearMonth, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        if (!TryParseYearMonth(yearMonth, out var start))
+        {
+            return BadRequest("yearMonth must be in YYYYMM format.");
+        }
+
+        var result = await _monthlySummaryService.EnsureMonthAsync(userId, start, cancellationToken);
+        if (result.Created)
+        {
+            return CreatedAtAction(nameof(GetMonthSummary), new { yearMonth }, result);
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPut("{yearMonth}")]
+    public async Task<ActionResult<MonthlySummaryResponse>> RebuildMonthSummary(string yearMonth, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        if (!TryParseYearMonth(yearMonth, out var start))
+        {
+            return BadRequest("yearMonth must be in YYYYMM format.");
+        }
+
+        var summary = await _monthlySummaryService.RebuildMonthAsync(userId, start, cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, start.AddMonths(1), cancellationToken);
+
+        return Ok(summary);
+    }
+
+    [HttpDelete("{yearMonth}")]
+    public async Task<ActionResult<DeleteMonthlySummaryResponse>> DeleteMonthSummary(string yearMonth, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        if (!TryParseYearMonth(yearMonth, out var start))
+        {
+            return BadRequest("yearMonth must be in YYYYMM format.");
+        }
+
+        var deletedCount = await _monthlySummaryService.DeleteFromMonthAsync(userId, start, cancellationToken);
+        return Ok(new DeleteMonthlySummaryResponse
+        {
+            DeletedCount = deletedCount
+        });
+    }
+
+    [HttpPost("rebuild-range")]
+    public async Task<ActionResult<RebuildMonthlySummaryRangeResponse>> RebuildRange(
+        [FromBody] RebuildMonthlySummaryRangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        if (!TryParseYearMonth(request.FromYearMonth, out var fromMonth))
+        {
+            return BadRequest("fromYearMonth must be in YYYYMM format.");
+        }
+
+        DateOnly? toMonth = null;
+        if (!string.IsNullOrWhiteSpace(request.ToYearMonth))
+        {
+            if (!TryParseYearMonth(request.ToYearMonth, out var parsedToMonth))
+            {
+                return BadRequest("toYearMonth must be in YYYYMM format.");
+            }
+
+            toMonth = parsedToMonth;
+        }
+
+        if (toMonth.HasValue && toMonth.Value < fromMonth)
+        {
+            return BadRequest("toYearMonth must be greater than or equal to fromYearMonth.");
+        }
+
+        var rebuiltCount = await _monthlySummaryService.RebuildRangeAsync(userId, fromMonth, toMonth, cancellationToken);
+        var responseToMonth = toMonth ?? new DateOnly(DateTime.Now.Year, DateTime.Now.Month, 1);
+
+        return Ok(new RebuildMonthlySummaryRangeResponse
+        {
+            RebuiltCount = rebuiltCount,
+            FromYearMonth = FormatYearMonth(fromMonth),
+            ToYearMonth = FormatYearMonth(responseToMonth)
+        });
+    }
+
     [HttpGet("{yearMonth}/day/{dayNumber:int}")]
-    public async Task<ActionResult<object>> GetRunningDaySummary(string yearMonth, int dayNumber)
+    public async Task<ActionResult<object>> GetRunningDaySummary(string yearMonth, int dayNumber, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId))
@@ -57,7 +164,7 @@ public class SummaryController : ControllerBase
             return BadRequest($"dayNumber must be between 1 and {daysInMonth}.");
         }
 
-        var summary = await BuildMonthSummaryAsync(userId, start);
+        var summary = await _monthlySummaryService.GetMonthAsync(userId, start, cancellationToken);
         var day = summary.Daily.Single(x => x.DayNumber == dayNumber);
 
         return Ok(new
@@ -66,93 +173,20 @@ public class SummaryController : ControllerBase
             month = summary.Month,
             dayNumber = day.DayNumber,
             date = day.Date,
+            startingBalance = summary.StartingBalance,
+            income = day.Income,
             expense = day.Expense,
+            cumulativeIncome = day.CumulativeIncome,
             cumulativeExpenses = day.CumulativeExpenses,
             allowedUntilDay = day.AllowedUntilDay,
+            runningBalance = day.RunningBalance,
             net = day.Net,
             dailyAllowance = summary.DailyAllowance,
             totalIncome = summary.TotalIncome,
             expensesTotal = summary.ExpensesTotal,
+            closingBalance = summary.ClosingBalance,
             monthlyBalance = summary.MonthlyBalance
         });
-    }
-
-    private async Task<MonthSummaryResult> BuildMonthSummaryAsync(string userId, DateOnly start)
-    {
-        var end = start.AddMonths(1).AddDays(-1);
-        var daysInMonth = DateTime.DaysInMonth(start.Year, start.Month);
-
-        var confirmedExpenses = await _db.Expenses
-            .AsNoTracking()
-            .Where(x => x.UserId == userId)
-            .Where(x => x.Status == TransactionStatus.Confirmed)
-            .Where(x => x.Date >= start && x.Date <= end)
-            .Select(x => new { x.Date, x.Amount })
-            .ToListAsync();
-
-        var confirmedIncomesTotal = await _db.Incomes
-            .AsNoTracking()
-            .Where(x => x.UserId == userId)
-            .Where(x => x.Status == TransactionStatus.Confirmed)
-            .Where(x => x.Date >= start && x.Date <= end)
-            .SumAsync(x => (decimal?)x.Amount) ?? 0m;
-
-        var activeIncomeSourcesTotal = await _db.IncomeSources
-            .AsNoTracking()
-            .Where(x => x.UserId == userId)
-            .Where(x => x.StartDate <= end)
-            .Where(x => x.EndDate == null || x.EndDate >= start)
-            .SumAsync(x => (decimal?)x.MonthlyAmount) ?? 0m;
-
-        var expensesTotal = confirmedExpenses.Sum(x => x.Amount);
-        var totalIncome = activeIncomeSourcesTotal + confirmedIncomesTotal;
-        var monthlyBalance = totalIncome - expensesTotal;
-        var dailyAllowance = daysInMonth == 0
-            ? 0m
-            : decimal.Round(totalIncome / daysInMonth, 3, MidpointRounding.AwayFromZero);
-
-        var expenseByDate = confirmedExpenses
-            .GroupBy(x => x.Date)
-            .ToDictionary(x => x.Key, x => x.Sum(y => y.Amount));
-
-        var daily = new List<DaySummaryResult>(daysInMonth);
-        decimal cumulativeExpenses = 0m;
-
-        for (var day = 1; day <= daysInMonth; day++)
-        {
-            var currentDate = new DateOnly(start.Year, start.Month, day);
-            var dayExpense = expenseByDate.GetValueOrDefault(currentDate, 0m);
-            cumulativeExpenses += dayExpense;
-
-            var allowedUntilDay = decimal.Round(dailyAllowance * day, 3, MidpointRounding.AwayFromZero);
-            var net = decimal.Round(allowedUntilDay - cumulativeExpenses, 3, MidpointRounding.AwayFromZero);
-
-            daily.Add(new DaySummaryResult
-            {
-                Date = currentDate,
-                DayNumber = day,
-                Expense = dayExpense,
-                CumulativeExpenses = cumulativeExpenses,
-                AllowedUntilDay = allowedUntilDay,
-                Net = net
-            });
-        }
-
-        return new MonthSummaryResult
-        {
-            Year = start.Year,
-            Month = start.Month,
-            From = start,
-            To = end,
-            DaysInMonth = daysInMonth,
-            IncomeSourcesTotal = activeIncomeSourcesTotal,
-            IncomesTotal = confirmedIncomesTotal,
-            TotalIncome = totalIncome,
-            ExpensesTotal = expensesTotal,
-            MonthlyBalance = monthlyBalance,
-            DailyAllowance = dailyAllowance,
-            Daily = daily
-        };
     }
 
     private static bool TryParseYearMonth(string yearMonth, out DateOnly start)
@@ -174,30 +208,6 @@ public class SummaryController : ControllerBase
         start = new DateOnly(year, month, 1);
         return true;
     }
-}
 
-public sealed class MonthSummaryResult
-{
-    public int Year { get; set; }
-    public int Month { get; set; }
-    public DateOnly From { get; set; }
-    public DateOnly To { get; set; }
-    public int DaysInMonth { get; set; }
-    public decimal IncomeSourcesTotal { get; set; }
-    public decimal IncomesTotal { get; set; }
-    public decimal TotalIncome { get; set; }
-    public decimal ExpensesTotal { get; set; }
-    public decimal MonthlyBalance { get; set; }
-    public decimal DailyAllowance { get; set; }
-    public List<DaySummaryResult> Daily { get; set; } = [];
-}
-
-public sealed class DaySummaryResult
-{
-    public DateOnly Date { get; set; }
-    public int DayNumber { get; set; }
-    public decimal Expense { get; set; }
-    public decimal CumulativeExpenses { get; set; }
-    public decimal AllowedUntilDay { get; set; }
-    public decimal Net { get; set; }
+    private static string FormatYearMonth(DateOnly value) => $"{value.Year:D4}{value.Month:D2}";
 }
