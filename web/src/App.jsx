@@ -132,8 +132,7 @@ function App() {
       setFeedback({ type: "", message: "" });
 
       try {
-        const [expenses, incomes, incomeSources, monthSummary, runningDay, todaySummary] = await Promise.all([
-          api.get("/api/v1/expenses?limit=8&offset=0"),
+        const [incomes, incomeSources, monthSummary, runningDay, todaySummary] = await Promise.all([
           api.get("/api/v1/incomes?limit=8&offset=0"),
           api.get("/api/v1/income-sources"),
           api.get(`/api/v1/summaries/${month}`),
@@ -147,10 +146,13 @@ function App() {
 
         startTransition(() => {
           setDashboard({
-            expenses: expenses.items ?? [],
+            expenses: monthSummary.expenses ?? [],
             incomes: incomes.items ?? [],
             incomeSources,
-            expenseMeta: { totalCount: expenses.totalCount ?? 0, pageCount: expenses.pageCount ?? 0 },
+            expenseMeta: {
+              totalCount: monthSummary.expenseCount ?? 0,
+              pageCount: monthSummary.expenses?.length ?? 0,
+            },
             incomeMeta: { totalCount: incomes.totalCount ?? 0, pageCount: incomes.pageCount ?? 0 },
             monthSummary,
             runningDay,
@@ -648,9 +650,9 @@ function App() {
         </article>
 
         <DataPanel
-          title={`Recent expenses (${dashboard.expenseMeta.pageCount}/${dashboard.expenseMeta.totalCount})`}
+          title={`Month expenses (${dashboard.expenseMeta.pageCount}/${dashboard.expenseMeta.totalCount})`}
           items={dashboard.expenses}
-          emptyText="No expenses yet."
+          emptyText="No confirmed expenses for this month."
           onDelete={(item) => handleDelete(`/api/v1/expenses/${item.id}`, "Expense archived.")}
           onEdit={startExpenseEdit}
           renderItem={(item) => (
@@ -658,6 +660,7 @@ function App() {
               <strong>{formatMoney(item.amount)}</strong>
               <span>{item.date}</span>
               <span>{item.note || "No note"}</span>
+              <span>{item.status}</span>
             </>
           )}
         />
@@ -692,20 +695,20 @@ function App() {
 
           <div className="snapshot-strip">
             <PrivacySnapshotPill
-              label="Allowed today"
-              value={formatMoney(dashboard.runningDay?.allowedUntilDay)}
+              label="Opening balance"
+              value={formatMoney(dashboard.monthSummary?.startingBalance)}
               revealed={revealedMetrics.allowedToday}
               onReveal={() => revealMetric("allowedToday")}
             />
             <PrivacySnapshotPill
-              label="Spent so far"
-              value={formatMoney(dashboard.runningDay?.cumulativeExpenses)}
+              label="Previous close"
+              value={formatMoney(dashboard.monthSummary?.previousMonthClosingBalance)}
               revealed={revealedMetrics.spentSoFar}
               onReveal={() => revealMetric("spentSoFar")}
             />
             <PrivacySnapshotPill
-              label="Today count"
-              value={`${dashboard.todaySummary?.count ?? 0} entries`}
+              label="Spent so far"
+              value={formatMoney(dashboard.runningDay?.cumulativeExpenses)}
               revealed={revealedMetrics.todayCount}
               onReveal={() => revealMetric("todayCount")}
             />

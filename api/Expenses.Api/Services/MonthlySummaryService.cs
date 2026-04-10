@@ -159,6 +159,8 @@ public sealed class MonthlySummaryService
         var normalizedMonth = new DateOnly(monthStart.Year, monthStart.Month, 1);
         var summary = await GetSummaryEntityAsync(userId, normalizedMonth, asNoTracking: true, cancellationToken)
             ?? throw new InvalidOperationException("Monthly summary should exist after ensure/rebuild.");
+        var previousMonth = normalizedMonth.AddMonths(-1);
+        var previousSummary = await GetSummaryEntityAsync(userId, previousMonth, asNoTracking: true, cancellationToken);
 
         var end = normalizedMonth.AddMonths(1).AddDays(-1);
         var daysInMonth = DateTime.DaysInMonth(normalizedMonth.Year, normalizedMonth.Month);
@@ -168,7 +170,19 @@ public sealed class MonthlySummaryService
             .Where(x => x.UserId == userId)
             .Where(x => x.Status == TransactionStatus.Confirmed)
             .Where(x => x.Date >= normalizedMonth && x.Date <= end)
-            .Select(x => new { x.Date, x.Amount })
+            .OrderByDescending(x => x.Date)
+            .ThenByDescending(x => x.CreatedAtUtc)
+            .Select(x => new MonthlyExpenseResponse
+            {
+                Id = x.Id,
+                CategoryId = x.CategoryId,
+                Amount = x.Amount,
+                Date = x.Date,
+                Note = x.Note,
+                Status = x.Status,
+                CreatedAtUtc = x.CreatedAtUtc,
+                UpdatedAtUtc = x.UpdatedAtUtc
+            })
             .ToListAsync(cancellationToken);
 
         var confirmedIncomes = await _db.Incomes
@@ -229,14 +243,17 @@ public sealed class MonthlySummaryService
             From = normalizedMonth,
             To = end,
             DaysInMonth = daysInMonth,
+            PreviousMonthClosingBalance = previousSummary?.ClosingBalance,
             StartingBalance = summary.StartingBalance,
             IncomeSourcesTotal = incomeSourcesTotal,
             IncomesTotal = incomesTotal,
             TotalIncome = summary.TotalIncome,
             ExpensesTotal = summary.TotalExpense,
+            ExpenseCount = confirmedExpenses.Count,
             ClosingBalance = summary.ClosingBalance,
             MonthlyBalance = summary.ClosingBalance,
             DailyAllowance = summary.DailyAllowance,
+            Expenses = confirmedExpenses,
             Daily = daily
         };
     }

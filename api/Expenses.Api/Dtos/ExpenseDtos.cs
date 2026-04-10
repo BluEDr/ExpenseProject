@@ -6,7 +6,8 @@ public record ExpenseCreateRequest(
     Guid? CategoryId,
     decimal Amount,
     DateOnly Date,
-    string? Note
+    string? Note,
+    TransactionStatus? Status
 );
 
 public record ExpenseUpdateRequest(

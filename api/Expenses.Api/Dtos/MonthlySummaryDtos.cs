@@ -1,3 +1,5 @@
+using Expenses.Api.Models;
+
 namespace Expenses.Api.Dtos;
 
 public sealed class MonthlySummaryResponse
@@ -7,15 +9,30 @@ public sealed class MonthlySummaryResponse
     public DateOnly From { get; set; }
     public DateOnly To { get; set; }
     public int DaysInMonth { get; set; }
+    public decimal? PreviousMonthClosingBalance { get; set; }
     public decimal StartingBalance { get; set; }
     public decimal IncomeSourcesTotal { get; set; }
     public decimal IncomesTotal { get; set; }
     public decimal TotalIncome { get; set; }
     public decimal ExpensesTotal { get; set; }
+    public int ExpenseCount { get; set; }
     public decimal ClosingBalance { get; set; }
     public decimal MonthlyBalance { get; set; }
     public decimal DailyAllowance { get; set; }
+    public List<MonthlyExpenseResponse> Expenses { get; set; } = [];
     public List<MonthlyDaySummaryResponse> Daily { get; set; } = [];
+}
+
+public sealed class MonthlyExpenseResponse
+{
+    public Guid Id { get; set; }
+    public Guid? CategoryId { get; set; }
+    public decimal Amount { get; set; }
+    public DateOnly Date { get; set; }
+    public string? Note { get; set; }
+    public TransactionStatus Status { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
 }
 
 public sealed class MonthlyDaySummaryResponse
