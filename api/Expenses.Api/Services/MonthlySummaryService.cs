@@ -220,7 +220,7 @@ public sealed class MonthlySummaryService
 
             var allowedUntilDay = decimal.Round(summary.DailyAllowance * day, 2, MidpointRounding.AwayFromZero);
             var runningBalance = decimal.Round(openingAvailable + cumulativeIncome - cumulativeExpenses, 2, MidpointRounding.AwayFromZero);
-            var net = decimal.Round(allowedUntilDay + cumulativeIncome - cumulativeExpenses, 2, MidpointRounding.AwayFromZero);
+            var net = decimal.Round(summary.StartingBalance + allowedUntilDay + cumulativeIncome - cumulativeExpenses, 2, MidpointRounding.AwayFromZero);
 
             daily.Add(new MonthlyDaySummaryResponse
             {
@@ -289,7 +289,7 @@ public sealed class MonthlySummaryService
         var closingBalance = decimal.Round(startingBalance + totalIncome - totalExpense, 2, MidpointRounding.AwayFromZero);
         // One-off incomes are applied on their exact dates in the daily summary.
         // The monthly allowance should reflect only the money planned for the month.
-        var availableToSpend = startingBalance + activeIncomeSourcesTotal;
+        var availableToSpend = activeIncomeSourcesTotal;
         var dailyAllowance = daysInMonth == 0
             ? 0m
             : decimal.Round(availableToSpend / daysInMonth, 2, MidpointRounding.AwayFromZero);
