@@ -583,7 +583,15 @@ function App() {
       <section className="mobile-home-grid mobile-home-grid-priority">
         <article className="panel quick-add-panel quick-add-panel-priority">
           <div className="numpad-display-wrap">
-            <span className="numpad-caption">Amount for {todayLabel}</span>
+            <div className="numpad-caption-row">
+              <span className="numpad-caption">Amount for {todayLabel}</span>
+              <span
+                className={`running-delta-badge running-delta-badge-${metricTone(dashboard.runningDay?.net)}`}
+                aria-label="Running delta"
+              >
+                {formatMoney(dashboard.runningDay?.net)}
+              </span>
+            </div>
             <input
               className="numpad-display"
               value={quickAmount ? formatMoney(quickAmount) : "EUR 0.00"}

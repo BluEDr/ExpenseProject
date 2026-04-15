@@ -319,9 +319,44 @@
   gap: 8px;
 }
 
+.numpad-caption-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .numpad-caption {
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.running-delta-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  color: var(--text-strong);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.running-delta-badge-success {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 28%, var(--border-soft));
+  background: color-mix(in srgb, var(--success) 10%, var(--surface-2));
+}
+
+.running-delta-badge-danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--border-soft));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-2));
 }
 
 .numpad-display {
@@ -595,6 +630,11 @@
 
   .quick-add-panel {
     padding-top: 16px;
+  }
+
+  .numpad-caption-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 
   .hero-metrics-grid-compact {
