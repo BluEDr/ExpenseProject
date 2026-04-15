@@ -82,6 +82,33 @@ function App() {
       }).format(new Date()),
     [],
   );
+  const quickActivity = useMemo(() => {
+    const expenseItems = (dashboard.expenses ?? []).map((item) => ({
+      id: `expense-${item.id}`,
+      kind: "expense",
+      amount: item.amount,
+      createdAtUtc: item.createdAtUtc ?? "",
+      date: item.date ?? "",
+    }));
+    const incomeItems = (dashboard.incomes ?? []).map((item) => ({
+      id: `income-${item.id}`,
+      kind: "income",
+      amount: item.amount,
+      createdAtUtc: item.createdAtUtc ?? "",
+      date: item.date ?? "",
+    }));
+
+    return [...expenseItems, ...incomeItems]
+      .sort((left, right) => {
+        const createdDiff = new Date(right.createdAtUtc).getTime() - new Date(left.createdAtUtc).getTime();
+        if (!Number.isNaN(createdDiff) && createdDiff !== 0) {
+          return createdDiff;
+        }
+
+        return new Date(right.date).getTime() - new Date(left.date).getTime();
+      })
+      .slice(0, 14);
+  }, [dashboard.expenses, dashboard.incomes]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -132,8 +159,9 @@ function App() {
       setFeedback({ type: "", message: "" });
 
       try {
-        const [incomes, incomeSources, monthSummary, runningDay, todaySummary] = await Promise.all([
-          api.get("/api/v1/incomes?limit=8&offset=0"),
+        const [expenses, incomes, incomeSources, monthSummary, runningDay, todaySummary] = await Promise.all([
+          api.get("/api/v1/expenses?limit=20&offset=0"),
+          api.get("/api/v1/incomes?limit=20&offset=0"),
           api.get("/api/v1/income-sources"),
           api.get(`/api/v1/summaries/${month}`),
           api.get(`/api/v1/summaries/${month}/day/${dayNumber}`),
@@ -654,6 +682,19 @@ function App() {
               {busy ? "Saving..." : editingExpenseId ? "Update expense" : "Add expense"}
             </button>
           </div>
+          {quickActivity.length > 0 ? (
+            <div className="quick-activity-strip" aria-label="Latest added expenses and incomes">
+              {quickActivity.map((item) => (
+                <span
+                  key={item.id}
+                  className={`quick-activity-chip quick-activity-chip-${item.kind}`}
+                  title={`${item.kind === "expense" ? "Expense" : "Income"} added ${item.date}`}
+                >
+                  {formatCompactMoney(item.amount)}
+                </span>
+              ))}
+            </div>
+          ) : null}
           {quickStatus ? <p className="quick-status">{quickStatus}</p> : null}
         </article>
 
@@ -1089,6 +1130,18 @@ function formatMoney(value) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "EUR",
+  }).format(Number(value));
+}
+
+function formatCompactMoney(value) {
+  if (value == null || Number.isNaN(Number(value))) {
+    return "€0";
+  }
+
+  return new Intl.NumberFormat("en-IE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 2,
   }).format(Number(value));
 }
 

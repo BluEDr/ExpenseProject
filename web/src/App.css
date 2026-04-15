@@ -402,6 +402,42 @@
   min-width: 160px;
 }
 
+.quick-activity-strip {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-content: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.quick-activity-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  color: var(--text-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.quick-activity-chip-expense {
+  color: color-mix(in srgb, var(--danger) 80%, var(--text-strong));
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border-soft));
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface-2));
+}
+
+.quick-activity-chip-income {
+  color: color-mix(in srgb, var(--success) 82%, var(--text-strong));
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border-soft));
+  background: color-mix(in srgb, var(--success) 9%, var(--surface-2));
+}
+
 .quick-status {
   margin: 0;
   padding: 10px 12px;

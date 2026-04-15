@@ -65,8 +65,8 @@ public class IncomesController : ControllerBase
         var totalCount = await query.CountAsync();
 
         var items = await query
-            .OrderByDescending(e => e.Date)
-            .ThenByDescending(e => e.CreatedAtUtc)
+            .OrderByDescending(e => e.CreatedAtUtc)
+            .ThenByDescending(e => e.Date)
             .Skip(skip)
             .Take(take)
             .Select(e => new
