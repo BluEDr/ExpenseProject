@@ -61,6 +61,7 @@ function App() {
   const [reloadKey, setReloadKey] = useState(0);
   const [quickAmount, setQuickAmount] = useState("");
   const [quickNote, setQuickNote] = useState("");
+  const [quickEntryMode, setQuickEntryMode] = useState("expense");
   const [menuOpen, setMenuOpen] = useState(false);
   const [quickStatus, setQuickStatus] = useState("");
   const [revealedMetrics, setRevealedMetrics] = useState(() => ({
@@ -109,6 +110,15 @@ function App() {
       })
       .slice(0, 14);
   }, [dashboard.expenses, dashboard.incomes]);
+  const isQuickExpenseMode = quickEntryMode === "expense";
+  const isQuickEditing = isQuickExpenseMode ? Boolean(editingExpenseId) : Boolean(editingIncomeId);
+  const quickSubmitLabel = isQuickExpenseMode
+    ? editingExpenseId
+      ? "Update expense"
+      : "Add expense"
+    : editingIncomeId
+      ? "Update income"
+      : "Add income";
 
   useEffect(() => {
     setMenuOpen(false);
@@ -258,46 +268,53 @@ function App() {
     await submitEntity("/api/v1/expenses", payload, "Expense added.", () => setExpenseForm(emptyExpense));
   }
 
-  async function handleQuickExpenseSubmit() {
-    if (!quickAmount || Number(quickAmount) <= 0) {
-      setFeedback({ type: "error", message: "Enter an amount before adding the expense." });
+  function resetQuickComposer(nextMode = quickEntryMode) {
+    setQuickEntryMode(nextMode);
+    setQuickAmount("");
+    setQuickNote("");
+    setQuickStatus("");
+    setEditingExpenseId(null);
+    setEditingIncomeId(null);
+    setExpenseForm(emptyExpense);
+    setIncomeForm(emptyIncome);
+  }
+
+  function switchQuickEntryMode(nextMode) {
+    if (nextMode === quickEntryMode) {
       return;
     }
 
+    resetQuickComposer(nextMode);
+  }
+
+  async function handleQuickSubmit() {
+    const entryLabel = isQuickExpenseMode ? "expense" : "income";
+
+    if (!quickAmount || Number(quickAmount) <= 0) {
+      setFeedback({ type: "error", message: `Enter an amount before adding the ${entryLabel}.` });
+      return;
+    }
+
+    const currentForm = isQuickExpenseMode ? expenseForm : incomeForm;
+    const editingId = isQuickExpenseMode ? editingExpenseId : editingIncomeId;
+    const resourcePath = isQuickExpenseMode ? "/api/v1/expenses" : "/api/v1/incomes";
     const payload = {
-      categoryId: trimToNull(expenseForm.categoryId),
+      categoryId: trimToNull(currentForm.categoryId),
       amount: Number(quickAmount),
-      date: editingExpenseId ? expenseForm.date : today,
+      date: editingId ? currentForm.date : today,
       note: trimToNull(quickNote),
-      status: expenseForm.status,
+      status: currentForm.status,
     };
 
-    if (editingExpenseId) {
-      await submitEntity(
-        `/api/v1/expenses/${editingExpenseId}`,
-        payload,
-        "Expense updated from numpad.",
-        () => {
-          setQuickAmount("");
-          setQuickNote("");
-          setExpenseForm(emptyExpense);
-          setEditingExpenseId(null);
-          setQuickStatus("OK. Expense updated.");
-        },
-        "put",
-      );
-      return;
-    }
-
     await submitEntity(
-      "/api/v1/expenses",
+      editingId ? `${resourcePath}/${editingId}` : resourcePath,
       payload,
-      "Expense added from numpad.",
+      `${isQuickExpenseMode ? "Expense" : "Income"} ${editingId ? "updated" : "added"} from numpad.`,
       () => {
-        setQuickAmount("");
-        setQuickNote("");
-        setQuickStatus("OK. Expense added.");
+        resetQuickComposer(quickEntryMode);
+        setQuickStatus(`OK. ${isQuickExpenseMode ? "Expense" : "Income"} ${editingId ? "updated" : "added"}.`);
       },
+      editingId ? "put" : "post",
     );
   }
 
@@ -401,9 +418,8 @@ function App() {
     }
 
     setSession(null);
-    setDashboard(defaultDashboard);
-    setQuickAmount("");
-    setQuickNote("");
+      setDashboard(defaultDashboard);
+    resetQuickComposer("expense");
     setExpenseForm(emptyExpense);
     setIncomeForm(emptyIncome);
     setIncomeSourceForm(emptyIncomeSource);
@@ -411,7 +427,6 @@ function App() {
     setEditingIncomeId(null);
     setEditingIncomeSourceId(null);
     setMenuOpen(false);
-    setQuickStatus("");
   }
 
   function handleNumpadInput(key) {
@@ -441,7 +456,9 @@ function App() {
   }
 
   function startExpenseEdit(item) {
+    setQuickEntryMode("expense");
     setEditingExpenseId(item.id);
+    setEditingIncomeId(null);
     setQuickAmount(`${item.amount ?? ""}`);
     setQuickNote(item.note ?? "");
     setExpenseForm({
@@ -456,7 +473,11 @@ function App() {
   }
 
   function startIncomeEdit(item) {
+    setQuickEntryMode("income");
     setEditingIncomeId(item.id);
+    setEditingExpenseId(null);
+    setQuickAmount(`${item.amount ?? ""}`);
+    setQuickNote(item.note ?? "");
     setIncomeForm({
       amount: `${item.amount ?? ""}`,
       date: item.date,
@@ -464,7 +485,8 @@ function App() {
       categoryId: item.categoryId ?? "",
       status: item.status ?? "Confirmed",
     });
-    setFeedback({ type: "success", message: "Income loaded for editing." });
+    setFeedback({ type: "success", message: "Income loaded into quick edit." });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function startIncomeSourceEdit(item) {
@@ -612,7 +634,24 @@ function App() {
         <article className="panel quick-add-panel quick-add-panel-priority">
           <div className="numpad-display-wrap">
             <div className="numpad-caption-row">
-              <span className="numpad-caption">Amount for {todayLabel}</span>
+              <div className="quick-mode-toggle" role="tablist" aria-label="Quick entry type">
+                <button
+                  type="button"
+                  className={`quick-mode-toggle-button ${isQuickExpenseMode ? "active" : ""}`}
+                  onClick={() => switchQuickEntryMode("expense")}
+                  aria-pressed={isQuickExpenseMode}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  className={`quick-mode-toggle-button ${!isQuickExpenseMode ? "active" : ""}`}
+                  onClick={() => switchQuickEntryMode("income")}
+                  aria-pressed={!isQuickExpenseMode}
+                >
+                  Income
+                </button>
+              </div>
               <span
                 className={`running-delta-badge running-delta-badge-${metricTone(dashboard.runningDay?.net)}`}
                 aria-label="Running delta"
@@ -672,14 +711,14 @@ function App() {
               type="text"
               value={quickNote}
               onChange={(event) => setQuickNote(event.target.value)}
-              placeholder="Optional note"
-              aria-label="Expense note"
+              placeholder={`Optional ${isQuickExpenseMode ? "expense" : "income"} note`}
+              aria-label={`${isQuickExpenseMode ? "Expense" : "Income"} note`}
             />
           </label>
 
           <div className="quick-actions">
-            <button type="button" className="primary quick-submit" disabled={busy} onClick={handleQuickExpenseSubmit}>
-              {busy ? "Saving..." : editingExpenseId ? "Update expense" : "Add expense"}
+            <button type="button" className="primary quick-submit" disabled={busy} onClick={handleQuickSubmit}>
+              {busy ? "Saving..." : quickSubmitLabel}
             </button>
           </div>
           {quickActivity.length > 0 ? (

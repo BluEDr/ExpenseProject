@@ -326,9 +326,30 @@
   gap: 12px;
 }
 
-.numpad-caption {
+.quick-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  gap: 4px;
+}
+
+.quick-mode-toggle-button {
+  min-height: 34px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.quick-mode-toggle-button.active {
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface-1));
+  color: var(--text-strong);
 }
 
 .running-delta-badge {
