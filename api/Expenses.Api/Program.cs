@@ -101,8 +101,10 @@ builder.Services
     .AddSignInManager();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.Configure<AuditTimeOptions>(builder.Configuration.GetSection("AuditTime"));
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<MonthlySummaryService>();
+builder.Services.AddSingleton<IAuditTimeProvider, AuditTimeProvider>();
 
 var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));

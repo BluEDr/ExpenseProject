@@ -2,6 +2,7 @@ using Expenses.Api.Data;
 using Expenses.Api.Dtos;
 using Expenses.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 
 namespace Expenses.Api.Services;
 
@@ -124,7 +125,9 @@ public sealed class MonthlySummaryService
         if (earliestMonth.HasValue && normalizedMonth > earliestMonth.Value)
         {
             var previousMonth = normalizedMonth.AddMonths(-1);
-            await EnsureMonthBuiltAsync(userId, previousMonth, forceRebuild, cancellationToken);
+            // Rebuilding the current or future month should not recursively rebuild all
+            // previous months. We only need the previous month summary to exist.
+            await EnsureMonthBuiltAsync(userId, previousMonth, forceRebuild: false, cancellationToken);
 
             var previousSummary = await GetSummaryEntityAsync(userId, previousMonth, asNoTracking: true, cancellationToken);
             startingBalance = previousSummary?.ClosingBalance ?? 0m;
@@ -151,7 +154,41 @@ public sealed class MonthlySummaryService
             _db.MonthlySummaries.Add(summary);
         }
 
-        await _db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateMonthlySummary(ex))
+        {
+            if (trackedSummary == null)
+            {
+                _db.Entry(summary).State = EntityState.Detached;
+            }
+
+            if (!forceRebuild)
+            {
+                return;
+            }
+
+            trackedSummary = await GetSummaryEntityAsync(userId, normalizedMonth, asNoTracking: false, cancellationToken);
+            if (trackedSummary == null)
+            {
+                throw;
+            }
+
+            trackedSummary.StartingBalance = monthlyTotals.StartingBalance;
+            trackedSummary.TotalIncome = monthlyTotals.TotalIncome;
+            trackedSummary.TotalExpense = monthlyTotals.TotalExpense;
+            trackedSummary.ClosingBalance = monthlyTotals.ClosingBalance;
+            trackedSummary.DailyAllowance = monthlyTotals.DailyAllowance;
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private static bool IsDuplicateMonthlySummary(DbUpdateException exception)
+    {
+        return exception.InnerException is MySqlException { Number: 1062 } mySqlException
+            && mySqlException.Message.Contains("IX_MonthlySummaries_UserId_Year_Month", StringComparison.Ordinal);
     }
 
     private async Task<MonthlySummaryResponse> BuildResponseAsync(string userId, DateOnly monthStart, CancellationToken cancellationToken)
