@@ -99,18 +99,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     private void ApplyAuditTimestamps()
     {
-        var utcNow = DateTime.UtcNow;
+        var serverNow = DateTime.Now;
 
         foreach (var entry in ChangeTracker.Entries<IAuditable>())
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedAtUtc = utcNow;
-                entry.Entity.UpdatedAtUtc = utcNow;
+                entry.Entity.CreatedAtUtc = serverNow;
+                entry.Entity.UpdatedAtUtc = serverNow;
             }
             else if (entry.State == EntityState.Modified)
             {
-                entry.Entity.UpdatedAtUtc = utcNow;
+                entry.Entity.UpdatedAtUtc = serverNow;
             }
         }
 
@@ -134,7 +134,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             if (isDeleted == true && deletedAt == null)
             {
-                deletedAtProperty.CurrentValue = utcNow;
+                deletedAtProperty.CurrentValue = serverNow;
             }
             else if (isDeleted == false && deletedAt != null)
             {

@@ -51,6 +51,15 @@ public sealed class MonthlySummaryService
     {
         var current = new DateOnly(monthStart.Year, monthStart.Month, 1);
         var finalMonth = await GetLatestImpactedMonthAsync(userId, cancellationToken);
+        var currentMonth = new DateOnly(DateTime.Now.Year, DateTime.Now.Month, 1);
+
+        // Save operations should only rebuild up to the present month. Future income
+        // source end dates can otherwise trigger decades of unnecessary summary work.
+        if (finalMonth > currentMonth)
+        {
+            finalMonth = currentMonth;
+        }
+
         if (finalMonth < current)
         {
             finalMonth = current;

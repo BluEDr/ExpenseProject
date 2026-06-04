@@ -62,8 +62,7 @@ public class ExpensesController : ControllerBase
             Amount = request.Amount,
             Date = request.Date,
             Note = request.Note,
-            Status = request.Status ?? TransactionStatus.Confirmed,
-            CreatedAtUtc = DateTime.UtcNow
+            Status = request.Status ?? TransactionStatus.Confirmed
         };
 
         _db.Expenses.Add(expense);
