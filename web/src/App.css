@@ -459,6 +459,12 @@
   background: color-mix(in srgb, var(--success) 9%, var(--surface-2));
 }
 
+.quick-activity-chip-today {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
+}
+
 .quick-status {
   margin: 0;
   padding: 10px 12px;

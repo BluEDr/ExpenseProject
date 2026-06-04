@@ -28,6 +28,7 @@ const emptyIncomeSource = {
 };
 
 const defaultDashboard = {
+  activities: [],
   expenses: [],
   incomes: [],
   incomeSources: [],
@@ -84,22 +85,14 @@ function App() {
     [],
   );
   const quickActivity = useMemo(() => {
-    const expenseItems = (dashboard.expenses ?? []).map((item) => ({
-      id: `expense-${item.id}`,
-      kind: "expense",
-      amount: item.amount,
-      createdAtUtc: item.createdAtUtc ?? "",
-      date: item.date ?? "",
-    }));
-    const incomeItems = (dashboard.incomes ?? []).map((item) => ({
-      id: `income-${item.id}`,
-      kind: "income",
-      amount: item.amount,
-      createdAtUtc: item.createdAtUtc ?? "",
-      date: item.date ?? "",
-    }));
-
-    return [...expenseItems, ...incomeItems]
+    return (dashboard.activities ?? [])
+      .map((item) => ({
+        id: `${item.type}-${item.id}`,
+        kind: item.type,
+        amount: item.amount,
+        createdAtUtc: item.createdAtUtc ?? "",
+        date: item.date ?? "",
+      }))
       .sort((left, right) => {
         const createdDiff = new Date(right.createdAtUtc).getTime() - new Date(left.createdAtUtc).getTime();
         if (!Number.isNaN(createdDiff) && createdDiff !== 0) {
@@ -109,7 +102,7 @@ function App() {
         return new Date(right.date).getTime() - new Date(left.date).getTime();
       })
       .slice(0, 14);
-  }, [dashboard.expenses, dashboard.incomes]);
+  }, [dashboard.activities]);
   const isQuickExpenseMode = quickEntryMode === "expense";
   const isQuickEditing = isQuickExpenseMode ? Boolean(editingExpenseId) : Boolean(editingIncomeId);
   const quickSubmitLabel = isQuickExpenseMode
@@ -169,10 +162,10 @@ function App() {
       setFeedback({ type: "", message: "" });
 
       try {
-        const [expenses, incomes, incomeSources, monthSummary, runningDay, todaySummary] = await Promise.all([
-          api.get("/api/v1/expenses?limit=20&offset=0"),
+        const [incomes, incomeSources, activities, monthSummary, runningDay, todaySummary] = await Promise.all([
           api.get("/api/v1/incomes?limit=20&offset=0"),
           api.get("/api/v1/income-sources"),
+          api.get("/api/v1/activities/latest?limit=14"),
           api.get(`/api/v1/summaries/${month}`),
           api.get(`/api/v1/summaries/${month}/day/${dayNumber}`),
           api.get(`/api/v1/expenses/summary?from=${today}&to=${today}`),
@@ -184,6 +177,7 @@ function App() {
 
         startTransition(() => {
           setDashboard({
+            activities: activities ?? [],
             expenses: monthSummary.expenses ?? [],
             incomes: incomes.items ?? [],
             incomeSources,
@@ -726,7 +720,7 @@ function App() {
               {quickActivity.map((item) => (
                 <span
                   key={item.id}
-                  className={`quick-activity-chip quick-activity-chip-${item.kind}`}
+                  className={`quick-activity-chip quick-activity-chip-${item.kind} ${item.date === today ? "quick-activity-chip-today" : ""}`}
                   title={`${item.kind === "expense" ? "Expense" : "Income"} added ${item.date}`}
                 >
                   {formatCompactMoney(item.amount)}
