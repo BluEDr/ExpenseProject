@@ -154,12 +154,13 @@ public class IncomesController : ControllerBase
             Amount = request.Amount,
             Date = request.Date,
             Note = request.Note,
-            Status = request.Status ?? TransactionStatus.Confirmed
+            Status = request.Status ?? TransactionStatus.Confirmed,
+            CreatedAtUtc = DateTime.UtcNow
         };
 
         _db.Incomes.Add(income);
         await _db.SaveChangesAsync(cancellationToken);
-        await _monthlySummaryService.DeleteFromMonthAsync(userId, ToMonthStart(income.Date), cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, ToMonthStart(income.Date), cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = income.Id }, new
         {
@@ -223,7 +224,7 @@ public class IncomesController : ControllerBase
         await _db.SaveChangesAsync(cancellationToken);
 
         var affectedMonth = MinMonth(originalMonth, ToMonthStart(income.Date));
-        await _monthlySummaryService.DeleteFromMonthAsync(userId, affectedMonth, cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, affectedMonth, cancellationToken);
 
         return Ok(new
         {
@@ -261,7 +262,7 @@ public class IncomesController : ControllerBase
 
         income.IsDeleted = true;
         await _db.SaveChangesAsync(cancellationToken);
-        await _monthlySummaryService.DeleteFromMonthAsync(userId, ToMonthStart(income.Date), cancellationToken);
+        await _monthlySummaryService.RebuildFromMonthForwardAsync(userId, ToMonthStart(income.Date), cancellationToken);
 
         return NoContent();
     }

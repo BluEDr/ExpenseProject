@@ -57,8 +57,7 @@ function App() {
   const [editingIncomeSourceId, setEditingIncomeSourceId] = useState(null);
   const [dashboard, setDashboard] = useState(defaultDashboard);
   const [feedback, setFeedback] = useState({ type: "", message: "" });
-  const [authBusy, setAuthBusy] = useState(false);
-  const [mutationBusy, setMutationBusy] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [quickAmount, setQuickAmount] = useState("");
   const [quickNote, setQuickNote] = useState("");
@@ -166,6 +165,7 @@ function App() {
     let cancelled = false;
 
     async function loadDashboard() {
+      setBusy(true);
       setFeedback({ type: "", message: "" });
 
       try {
@@ -203,6 +203,7 @@ function App() {
         }
       } finally {
         if (!cancelled) {
+          setBusy(false);
         }
       }
     }
@@ -216,7 +217,7 @@ function App() {
 
   async function handleAuthSubmit(event) {
     event.preventDefault();
-    setAuthBusy(true);
+    setBusy(true);
     setFeedback({ type: "", message: "" });
 
     try {
@@ -237,7 +238,7 @@ function App() {
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
     } finally {
-      setAuthBusy(false);
+      setBusy(false);
     }
   }
 
@@ -372,7 +373,7 @@ function App() {
   }
 
   async function submitEntity(path, payload, message, resetForm, method = "post") {
-    setMutationBusy(true);
+    setBusy(true);
     setFeedback({ type: "", message: "" });
     setQuickStatus("");
 
@@ -388,12 +389,12 @@ function App() {
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
     } finally {
-      setMutationBusy(false);
+      setBusy(false);
     }
   }
 
   async function handleDelete(path, message) {
-    setMutationBusy(true);
+    setBusy(true);
     setFeedback({ type: "", message: "" });
 
     try {
@@ -403,7 +404,7 @@ function App() {
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
     } finally {
-      setMutationBusy(false);
+      setBusy(false);
     }
   }
 
@@ -574,8 +575,8 @@ function App() {
                 </label>
               </>
             )}
-            <button className="primary" type="submit" disabled={authBusy}>
-              {authBusy ? "Working..." : authMode === "login" ? "Login" : "Create account"}
+            <button className="primary" type="submit" disabled={busy}>
+              {busy ? "Working..." : authMode === "login" ? "Login" : "Create account"}
             </button>
           </form>
 
@@ -716,8 +717,8 @@ function App() {
           </label>
 
           <div className="quick-actions">
-            <button type="button" className="primary quick-submit" disabled={mutationBusy} onClick={handleQuickExpenseSubmit}>
-              {mutationBusy ? "Saving..." : editingExpenseId ? "Update expense" : "Add expense"}
+            <button type="button" className="primary quick-submit" disabled={busy} onClick={handleQuickSubmit}>
+              {busy ? "Saving..." : quickSubmitLabel}
             </button>
           </div>
           {quickActivity.length > 0 ? (
@@ -864,7 +865,7 @@ function App() {
               onChange={(event) => setExpenseForm({ ...expenseForm, note: event.target.value })}
             />
           </label>
-          <button className="primary" type="submit" disabled={mutationBusy}>
+          <button className="primary" type="submit" disabled={busy}>
             {editingExpenseId ? "Update expense" : "Add expense"}
           </button>
           {editingExpenseId ? (
@@ -925,7 +926,7 @@ function App() {
               onChange={(event) => setIncomeForm({ ...incomeForm, note: event.target.value })}
             />
           </label>
-          <button className="primary" type="submit" disabled={mutationBusy}>
+          <button className="primary" type="submit" disabled={busy}>
             {editingIncomeId ? "Update income" : "Add income"}
           </button>
           {editingIncomeId ? (
@@ -983,7 +984,7 @@ function App() {
               onChange={(event) => setIncomeSourceForm({ ...incomeSourceForm, note: event.target.value })}
             />
           </label>
-          <button className="primary" type="submit" disabled={mutationBusy}>
+          <button className="primary" type="submit" disabled={busy}>
             {editingIncomeSourceId ? "Update source" : "Add source"}
           </button>
           {editingIncomeSourceId ? (

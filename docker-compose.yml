@@ -26,14 +26,12 @@ services:
     container_name: expenses-api
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      TZ: "Europe/Athens"
       ConnectionStrings__Default: "Server=mysql;Port=3306;Database=expenses;User=appuser;Password=apppass;"
       Jwt__SecretKey: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY_32_CHARS_MIN"
       Jwt__Issuer: "Expenses.Api"
       Jwt__Audience: "Expenses.Api.Client"
       Jwt__AccessTokenMinutes: 30
       Jwt__RefreshTokenDays: 30
-      AuditTime__TimeZoneId: "Europe/Athens"
       Storage__AttachmentsPath: "/app/uploads"
     ports:
       - "5000:8080"

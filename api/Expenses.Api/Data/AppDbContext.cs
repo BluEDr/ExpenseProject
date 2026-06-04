@@ -1,5 +1,4 @@
 using Expenses.Api.Models;
-using Expenses.Api.Services;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,12 +6,7 @@ namespace Expenses.Api.Data;
 
 public class AppDbContext : IdentityDbContext<ApplicationUser>
 {
-    private readonly IAuditTimeProvider _auditTimeProvider;
-
-    public AppDbContext(DbContextOptions<AppDbContext> options, IAuditTimeProvider auditTimeProvider) : base(options)
-    {
-        _auditTimeProvider = auditTimeProvider;
-    }
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Expense> Expenses => Set<Expense>();
@@ -105,20 +99,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     private void ApplyAuditTimestamps()
     {
-        // The column names keep the legacy Utc suffix for compatibility, but the stored
-        // value follows the configured server-local audit timezone.
-        var auditNow = _auditTimeProvider.Now;
+        var utcNow = DateTime.UtcNow;
 
         foreach (var entry in ChangeTracker.Entries<IAuditable>())
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedAtUtc = auditNow;
-                entry.Entity.UpdatedAtUtc = auditNow;
+                entry.Entity.CreatedAtUtc = utcNow;
+                entry.Entity.UpdatedAtUtc = utcNow;
             }
             else if (entry.State == EntityState.Modified)
             {
-                entry.Entity.UpdatedAtUtc = auditNow;
+                entry.Entity.UpdatedAtUtc = utcNow;
             }
         }
 
@@ -142,7 +134,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             if (isDeleted == true && deletedAt == null)
             {
-                deletedAtProperty.CurrentValue = auditNow;
+                deletedAtProperty.CurrentValue = utcNow;
             }
             else if (isDeleted == false && deletedAt != null)
             {
