@@ -319,9 +319,65 @@
   gap: 8px;
 }
 
-.numpad-caption {
+.numpad-caption-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quick-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  gap: 4px;
+}
+
+.quick-mode-toggle-button {
+  min-height: 34px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.quick-mode-toggle-button.active {
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface-1));
+  color: var(--text-strong);
+}
+
+.running-delta-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  color: var(--text-strong);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.running-delta-badge-success {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 28%, var(--border-soft));
+  background: color-mix(in srgb, var(--success) 10%, var(--surface-2));
+}
+
+.running-delta-badge-danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--border-soft));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-2));
 }
 
 .numpad-display {
@@ -365,6 +421,42 @@
 
 .quick-submit {
   min-width: 160px;
+}
+
+.quick-activity-strip {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-content: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.quick-activity-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  color: var(--text-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.quick-activity-chip-expense {
+  color: color-mix(in srgb, var(--danger) 80%, var(--text-strong));
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border-soft));
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface-2));
+}
+
+.quick-activity-chip-income {
+  color: color-mix(in srgb, var(--success) 82%, var(--text-strong));
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border-soft));
+  background: color-mix(in srgb, var(--success) 9%, var(--surface-2));
 }
 
 .quick-status {
@@ -595,6 +687,11 @@
 
   .quick-add-panel {
     padding-top: 16px;
+  }
+
+  .numpad-caption-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 
   .hero-metrics-grid-compact {
