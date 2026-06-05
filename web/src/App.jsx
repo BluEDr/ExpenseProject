@@ -29,10 +29,8 @@ const emptyIncomeSource = {
 
 const defaultDashboard = {
   activities: [],
-  expenses: [],
   incomes: [],
   incomeSources: [],
-  expenseMeta: { totalCount: 0, pageCount: 0 },
   incomeMeta: { totalCount: 0, pageCount: 0 },
   monthSummary: null,
   runningDay: null,
@@ -65,6 +63,7 @@ function App() {
   const [quickEntryMode, setQuickEntryMode] = useState("expense");
   const [menuOpen, setMenuOpen] = useState(false);
   const [quickStatus, setQuickStatus] = useState("");
+  const [deleteDialog, setDeleteDialog] = useState(null);
   const [revealedMetrics, setRevealedMetrics] = useState(() => ({
     monthlyBalance: false,
     dailyBalance: false,
@@ -165,7 +164,7 @@ function App() {
         const [incomes, incomeSources, activities, monthSummary, runningDay, todaySummary] = await Promise.all([
           api.get("/api/v1/incomes?limit=20&offset=0"),
           api.get("/api/v1/income-sources"),
-          api.get("/api/v1/activities/latest?limit=14"),
+          api.get("/api/v1/activities/latest?limit=50"),
           api.get(`/api/v1/summaries/${month}`),
           api.get(`/api/v1/summaries/${month}/day/${dayNumber}`),
           api.get(`/api/v1/expenses/summary?from=${today}&to=${today}`),
@@ -178,13 +177,8 @@ function App() {
         startTransition(() => {
           setDashboard({
             activities: activities ?? [],
-            expenses: monthSummary.expenses ?? [],
             incomes: incomes.items ?? [],
             incomeSources,
-            expenseMeta: {
-              totalCount: monthSummary.expenseCount ?? 0,
-              pageCount: monthSummary.expenses?.length ?? 0,
-            },
             incomeMeta: { totalCount: incomes.totalCount ?? 0, pageCount: incomes.pageCount ?? 0 },
             monthSummary,
             runningDay,
@@ -387,7 +381,7 @@ function App() {
     }
   }
 
-  async function handleDelete(path, message) {
+  async function executeDelete(path, message) {
     setBusy(true);
     setFeedback({ type: "", message: "" });
 
@@ -400,6 +394,29 @@ function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleDelete(path, message, options = {}) {
+    setDeleteDialog({
+      path,
+      message,
+      title: options.title ?? "Archive item?",
+      description: options.description ?? "Please confirm before archiving this item.",
+      tone: options.tone ?? "default",
+      amount: options.amount ?? null,
+      reason: options.reason ?? null,
+      date: options.date ?? null,
+    });
+  }
+
+  async function confirmDelete() {
+    if (!deleteDialog) {
+      return;
+    }
+
+    const { path, message } = deleteDialog;
+    setDeleteDialog(null);
+    await executeDelete(path, message);
   }
 
   async function handleLogout() {
@@ -493,6 +510,31 @@ function App() {
       note: item.note ?? "",
     });
     setFeedback({ type: "success", message: "Income source loaded for editing." });
+  }
+
+  function handleActivityEdit(item) {
+    if (item.type === "income") {
+      startIncomeEdit(item);
+      return;
+    }
+
+    startExpenseEdit(item);
+  }
+
+  function handleActivityDelete(item) {
+    const isIncome = item.type === "income";
+    const resource = isIncome ? "incomes" : "expenses";
+    const message = isIncome ? "Income archived." : "Expense archived.";
+    return handleDelete(`/api/v1/${resource}/${item.id}`, message, {
+      title: isIncome ? "Archive income?" : "Archive expense?",
+      description: isIncome
+        ? "This income will be removed from your active records."
+        : "This expense will be removed from your active records.",
+      tone: isIncome ? "income" : "expense",
+      amount: item.amount,
+      reason: item.note,
+      date: item.date,
+    });
   }
 
   if (!session?.accessToken) {
@@ -731,20 +773,12 @@ function App() {
           {quickStatus ? <p className="quick-status">{quickStatus}</p> : null}
         </article>
 
-        <DataPanel
-          title={`Month expenses (${dashboard.expenseMeta.pageCount}/${dashboard.expenseMeta.totalCount})`}
-          items={dashboard.expenses}
-          emptyText="No confirmed expenses for this month."
-          onDelete={(item) => handleDelete(`/api/v1/expenses/${item.id}`, "Expense archived.")}
-          onEdit={startExpenseEdit}
-          renderItem={(item) => (
-            <>
-              <strong>{formatMoney(item.amount)}</strong>
-              <span>{item.date}</span>
-              <span>{item.note || "No note"}</span>
-              <span>{item.status}</span>
-            </>
-          )}
+        <ActivityTablePanel
+          title="Latest activity"
+          items={dashboard.activities}
+          emptyText="No recent expenses or incomes yet."
+          onDelete={handleActivityDelete}
+          onEdit={handleActivityEdit}
         />
 
         <article className="panel mobile-hero">
@@ -994,7 +1028,16 @@ function App() {
           title={`Recent incomes (${dashboard.incomeMeta.pageCount}/${dashboard.incomeMeta.totalCount})`}
           items={dashboard.incomes}
           emptyText="No incomes yet."
-          onDelete={(item) => handleDelete(`/api/v1/incomes/${item.id}`, "Income archived.")}
+          onDelete={(item) =>
+            handleDelete(`/api/v1/incomes/${item.id}`, "Income archived.", {
+              title: "Archive income?",
+              description: "This income will be removed from your active records.",
+              tone: "income",
+              amount: item.amount,
+              reason: item.note,
+              date: item.date,
+            })
+          }
           onEdit={startIncomeEdit}
           renderItem={(item) => (
             <>
@@ -1009,7 +1052,16 @@ function App() {
           title="Income sources"
           items={dashboard.incomeSources}
           emptyText="No recurring sources yet."
-          onDelete={(item) => handleDelete(`/api/v1/income-sources/${item.id}`, "Income source archived.")}
+          onDelete={(item) =>
+            handleDelete(`/api/v1/income-sources/${item.id}`, "Income source archived.", {
+              title: "Archive income source?",
+              description: "This recurring income source will be removed from your active records.",
+              tone: "income",
+              amount: item.monthlyAmount,
+              reason: item.note,
+              date: item.startDate,
+            })
+          }
           onEdit={startIncomeSourceEdit}
           renderItem={(item) => (
             <>
@@ -1022,6 +1074,13 @@ function App() {
           )}
         />
       </section>
+
+      <DeleteConfirmDialog
+        dialog={deleteDialog}
+        busy={busy}
+        onCancel={() => setDeleteDialog(null)}
+        onConfirm={confirmDelete}
+      />
     </main>
   );
 }
@@ -1076,6 +1135,132 @@ function DataPanel({ title, items, emptyText, renderItem, onDelete, onEdit }) {
         </ul>
       )}
     </article>
+  );
+}
+
+function ActivityTablePanel({ title, items, emptyText, onDelete, onEdit }) {
+  return (
+    <article className="panel activity-panel">
+      <div className="panel-header">
+        <div className="activity-panel-heading">
+          <h2>{title}</h2>
+          <div className="activity-legend" aria-label="Activity type legend">
+            <span className="activity-legend-item">
+              <span className="activity-type-dot activity-type-dot-expense" aria-hidden="true" />
+              <span>Expenses</span>
+            </span>
+            <span className="activity-legend-item">
+              <span className="activity-type-dot activity-type-dot-income" aria-hidden="true" />
+              <span>Incomes</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <p className="muted">{emptyText}</p>
+      ) : (
+        <div className="activity-table-wrap">
+          <table className="activity-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Note</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={`${item.type}-${item.id}`}>
+                  <td data-label="Type">
+                    <span
+                      className={`activity-type-dot activity-type-dot-${item.type}`}
+                      title={item.type === "expense" ? "Expense" : "Income"}
+                      aria-label={item.type === "expense" ? "Expense" : "Income"}
+                    />
+                  </td>
+                  <td data-label="Amount">{formatMoney(item.amount)}</td>
+                  <td data-label="Date">
+                    <span className="activity-date-block">
+                      <span>{`${formatActivityDate(item.date)} ${formatActivityTime(item.createdAtUtc)}`}</span>
+                    </span>
+                  </td>
+                  <td data-label="Note">{item.note || "No note"}</td>
+                  <td data-label="Actions">
+                    <div className="item-actions item-actions-table">
+                      <button type="button" className="icon-button" aria-label="Edit item" title="Edit" onClick={() => onEdit(item)}>
+                        <EditIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button icon-button-danger"
+                        aria-label="Archive item"
+                        title="Archive"
+                        onClick={() => onDelete(item)}
+                      >
+                        <DeleteIcon />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function DeleteConfirmDialog({ dialog, busy, onCancel, onConfirm }) {
+  if (!dialog) {
+    return null;
+  }
+
+  const toneClass = dialog.tone ? `delete-dialog-${dialog.tone}` : "delete-dialog-default";
+
+  return (
+    <div className="delete-dialog-backdrop" role="presentation" onClick={busy ? undefined : onCancel}>
+      <div
+        className={`delete-dialog ${toneClass}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-dialog-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="delete-dialog-header">
+          <span className={`delete-dialog-dot delete-dialog-dot-${dialog.tone || "default"}`} aria-hidden="true" />
+          <div>
+            <p className="eyebrow">Confirm archive</p>
+            <h2 id="delete-dialog-title">{dialog.title}</h2>
+          </div>
+        </div>
+        <p className="delete-dialog-copy">{dialog.description}</p>
+        <dl className="delete-dialog-details">
+          <div>
+            <dt>Amount</dt>
+            <dd>{dialog.amount != null ? formatMoney(dialog.amount) : "Not available"}</dd>
+          </div>
+          <div>
+            <dt>Date</dt>
+            <dd>{dialog.date ? formatActivityDate(dialog.date) : "Not available"}</dd>
+          </div>
+          <div className="delete-dialog-details-wide">
+            <dt>Reason</dt>
+            <dd>{dialog.reason || "No note"}</dd>
+          </div>
+        </dl>
+        <div className="delete-dialog-actions">
+          <button type="button" className="ghost" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <button type="button" className={`primary delete-dialog-confirm ${toneClass}`} onClick={onConfirm} disabled={busy}>
+            {busy ? "Archiving..." : "Archive"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1201,6 +1386,36 @@ function formatYearMonth(yearMonth) {
   return new Intl.DateTimeFormat("en-US", {
     month: "long",
     year: "numeric",
+  }).format(date);
+}
+
+function formatActivityDate(value) {
+  if (!value) {
+    return "--/--/--";
+  }
+
+  const [year, month, day] = String(value).split("-");
+  if (!year || !month || !day) {
+    return String(value);
+  }
+
+  return `${day}/${month}/${year.slice(-2)}`;
+}
+
+function formatActivityTime(value) {
+  if (!value) {
+    return "--:--";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "--:--";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
   }).format(date);
 }
 

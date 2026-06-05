@@ -475,6 +475,122 @@
   text-align: center;
 }
 
+.delete-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: color-mix(in srgb, #0f172a 42%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.delete-dialog {
+  width: min(460px, 100%);
+  border-radius: 26px;
+  padding: 22px;
+  background: linear-gradient(180deg, var(--surface-1), var(--surface-2));
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 24px 60px var(--shadow-strong);
+}
+
+.delete-dialog-expense {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border-soft));
+}
+
+.delete-dialog-income {
+  border-color: color-mix(in srgb, #2f6fe4 35%, var(--border-soft));
+}
+
+.delete-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.delete-dialog-header h2 {
+  margin: 0;
+  color: var(--text-strong);
+}
+
+.delete-dialog-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.delete-dialog-dot-expense {
+  color: color-mix(in srgb, var(--danger) 80%, var(--text-strong));
+  background: color-mix(in srgb, var(--danger) 18%, var(--surface-2));
+}
+
+.delete-dialog-dot-income {
+  color: color-mix(in srgb, #2f6fe4 82%, var(--text-strong));
+  background: color-mix(in srgb, #2f6fe4 24%, var(--surface-2));
+}
+
+.delete-dialog-dot-default {
+  color: color-mix(in srgb, var(--text-muted) 75%, var(--text-strong));
+  background: color-mix(in srgb, var(--text-muted) 18%, var(--surface-2));
+}
+
+.delete-dialog-copy {
+  margin: 16px 0 0;
+  color: var(--text-muted);
+}
+
+.delete-dialog-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 0;
+}
+
+.delete-dialog-details div {
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+}
+
+.delete-dialog-details-wide {
+  grid-column: 1 / -1;
+}
+
+.delete-dialog-details dt {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.delete-dialog-details dd {
+  margin: 8px 0 0;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.delete-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.delete-dialog-confirm.delete-dialog-expense {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--danger) 90%, #7f1d1d), color-mix(in srgb, var(--danger) 70%, #991b1b));
+  border-color: transparent;
+}
+
+.delete-dialog-confirm.delete-dialog-income {
+  background: linear-gradient(135deg, #2f6fe4, #1d4ed8);
+  border-color: transparent;
+}
+
 .running-panel {
   display: grid;
   align-content: start;
@@ -571,6 +687,120 @@
 
 .data-item strong {
   color: var(--text-strong);
+}
+
+.activity-panel {
+  overflow: hidden;
+}
+
+.activity-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.activity-legend {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.activity-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-table-wrap {
+  width: 100%;
+}
+
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.activity-table th,
+.activity-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.activity-table th {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.activity-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.activity-table td {
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.activity-table th:nth-child(1),
+.activity-table td:nth-child(1) {
+  width: 8%;
+}
+
+.activity-table th:nth-child(2),
+.activity-table td:nth-child(2) {
+  width: 20%;
+}
+
+.activity-table th:nth-child(3),
+.activity-table td:nth-child(3) {
+  width: 22%;
+}
+
+.activity-table th:nth-child(4),
+.activity-table td:nth-child(4) {
+  width: 38%;
+}
+
+.activity-table th:nth-child(5),
+.activity-table td:nth-child(5) {
+  width: 12%;
+}
+
+.activity-type-dot {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.activity-type-dot-expense {
+  color: color-mix(in srgb, var(--danger) 80%, var(--text-strong));
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface-2));
+}
+
+.activity-type-dot-income {
+  color: color-mix(in srgb, #2f6fe4 82%, var(--text-strong));
+  background: color-mix(in srgb, #2f6fe4 22%, var(--surface-2));
+}
+
+.activity-date-block {
+  display: block;
+  line-height: 1.35;
+}
+
+.item-actions-table {
+  justify-content: flex-end;
 }
 
 .item-actions {
@@ -710,6 +940,87 @@
 
   .quick-submit {
     width: 100%;
+  }
+
+  .activity-table th,
+  .activity-table td {
+    padding: 14px 8px;
+    font-size: 0.84rem;
+  }
+
+  .activity-table th {
+    font-size: 0.72rem;
+  }
+
+  .activity-table td::before {
+    content: none;
+  }
+
+  .activity-table th:nth-child(1),
+  .activity-table td:nth-child(1) {
+    width: 10%;
+  }
+
+  .activity-table th:nth-child(2),
+  .activity-table td:nth-child(2) {
+    width: 20%;
+  }
+
+  .activity-table th:nth-child(3),
+  .activity-table td:nth-child(3) {
+    width: 24%;
+  }
+
+  .activity-table th:nth-child(4),
+  .activity-table td:nth-child(4) {
+    width: 30%;
+  }
+
+  .activity-table th:nth-child(5),
+  .activity-table td:nth-child(5) {
+    width: 16%;
+  }
+
+  .activity-type-dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  .activity-date-block {
+    font-size: 0.8rem;
+  }
+
+  .activity-panel-heading {
+    align-items: flex-start;
+  }
+
+  .activity-legend {
+    justify-content: flex-end;
+  }
+
+  .item-actions-table {
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .icon-button {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    padding: 8px;
+  }
+
+  .delete-dialog {
+    padding: 20px 16px;
+  }
+
+  .delete-dialog-details {
+    grid-template-columns: 1fr;
+  }
+
+  .delete-dialog-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
   }
 
   .day-grid dd {

@@ -44,8 +44,10 @@ public class ActivitiesController : ControllerBase
             {
                 Type = "expense",
                 Id = x.Id,
+                CategoryId = x.CategoryId,
                 Amount = x.Amount,
                 Date = x.Date,
+                Status = x.Status.ToString(),
                 CreatedAtUtc = x.CreatedAtUtc,
                 Note = x.Note
             })
@@ -60,8 +62,10 @@ public class ActivitiesController : ControllerBase
             {
                 Type = "income",
                 Id = x.Id,
+                CategoryId = x.CategoryId,
                 Amount = x.Amount,
                 Date = x.Date,
+                Status = x.Status.ToString(),
                 CreatedAtUtc = x.CreatedAtUtc,
                 Note = x.Note
             })
