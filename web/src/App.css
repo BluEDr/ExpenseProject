@@ -798,13 +798,13 @@
 }
 
 .activity-type-dot-expense {
-  color: color-mix(in srgb, var(--danger) 80%, var(--text-strong));
-  background: color-mix(in srgb, var(--danger) 9%, var(--surface-2));
+  color: color-mix(in srgb, #ff8f8f 78%, white);
+  background: color-mix(in srgb, #ff8f8f 34%, var(--surface-2));
 }
 
 .activity-type-dot-income {
-  color: color-mix(in srgb, #2f6fe4 82%, var(--text-strong));
-  background: color-mix(in srgb, #2f6fe4 22%, var(--surface-2));
+  color: color-mix(in srgb, #6ea4ff 80%, white);
+  background: color-mix(in srgb, #6ea4ff 36%, var(--surface-2));
 }
 
 .activity-date-block {
