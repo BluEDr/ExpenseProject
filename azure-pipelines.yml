@@ -10,7 +10,7 @@ pr:
 
 variables:
   buildConfiguration: Release
-  dockerRegistryServiceConnection: github-container-registry
+  dockerRegistryServiceConnection: ghcr
   imageRepositoryApi: bluedr/expenseproject-api
   imageRepositoryWeb: bluedr/expenseproject-web
   imageTag: $(Build.SourceBranchName)-$(Build.BuildId)
