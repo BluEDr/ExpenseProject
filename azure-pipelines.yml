@@ -1,27 +1,95 @@
 trigger:
-- master
+  branches:
+    include:
+      - master
 
-pool:
-  vmImage: ubuntu-latest
+pr:
+  branches:
+    include:
+      - master
 
-steps:
-- task: UseDotNet@2
-  displayName: "Use .NET 9 SDK"
-  inputs:
-    packageType: sdk
-    version: "9.0.x"
+variables:
+  buildConfiguration: Release
+  dockerRegistryServiceConnection: github-container-registry
+  imageRepositoryApi: bluedr/expenseproject-api
+  imageRepositoryWeb: bluedr/expenseproject-web
+  imageTag: $(Build.SourceBranchName)-$(Build.BuildId)
+  latestTag: latest
 
-- script: dotnet build api/Expenses.Api/Expenses.Api.csproj --configuration Release
-  displayName: "Build API"
+stages:
+  - stage: Validate
+    displayName: Validate application
+    jobs:
+      - job: BuildAndLint
+        displayName: Build API and web
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: UseDotNet@2
+            displayName: Use .NET 9 SDK
+            inputs:
+              packageType: sdk
+              version: 9.0.x
 
-- task: NodeTool@0
-  displayName: "Use Node.js 22"
-  inputs:
-    versionSpec: "22.x"
+          - script: dotnet restore api/Expenses.Api/Expenses.Api.csproj
+            displayName: Restore API
 
-- script: |
-    npm ci
-    npm run lint
-    npm run build
-  displayName: "Build frontend"
-  workingDirectory: web
+          - script: dotnet build api/Expenses.Api/Expenses.Api.csproj --configuration $(buildConfiguration) --no-restore
+            displayName: Build API
+
+          - task: NodeTool@0
+            displayName: Use Node.js 22
+            inputs:
+              versionSpec: 22.x
+
+          - script: npm ci
+            displayName: Install web dependencies
+            workingDirectory: web
+
+          - script: npm run lint
+            displayName: Lint frontend
+            workingDirectory: web
+
+          - script: npm run build
+            displayName: Build frontend
+            workingDirectory: web
+
+  - stage: Docker
+    displayName: Build and push Docker images
+    dependsOn: Validate
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    jobs:
+      - job: PushImages
+        displayName: Push API and web images
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: Docker@2
+            displayName: Login to GitHub Container Registry
+            inputs:
+              command: login
+              containerRegistry: $(dockerRegistryServiceConnection)
+
+          - task: Docker@2
+            displayName: Build and push API image
+            inputs:
+              command: buildAndPush
+              containerRegistry: $(dockerRegistryServiceConnection)
+              repository: $(imageRepositoryApi)
+              dockerfile: api/Expenses.Api/Dockerfile
+              buildContext: api/Expenses.Api
+              tags: |
+                $(imageTag)
+                $(latestTag)
+
+          - task: Docker@2
+            displayName: Build and push web image
+            inputs:
+              command: buildAndPush
+              containerRegistry: $(dockerRegistryServiceConnection)
+              repository: $(imageRepositoryWeb)
+              dockerfile: web/Dockerfile
+              buildContext: web
+              tags: |
+                $(imageTag)
+                $(latestTag)
