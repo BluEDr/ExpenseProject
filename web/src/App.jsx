@@ -103,7 +103,6 @@ function App() {
       .slice(0, 14);
   }, [dashboard.activities]);
   const isQuickExpenseMode = quickEntryMode === "expense";
-  const isQuickEditing = isQuickExpenseMode ? Boolean(editingExpenseId) : Boolean(editingIncomeId);
   const quickSubmitLabel = isQuickExpenseMode
     ? editingExpenseId
       ? "Update expense"
@@ -140,13 +139,17 @@ function App() {
     }
   }
 
-  const api = createApiClient(
-    () => session,
-    setSession,
-    () => {
-      setSession(null);
-      setFeedback({ type: "error", message: "Session expired. Please log in again." });
-    },
+  const api = useMemo(
+    () =>
+      createApiClient(
+        () => session,
+        setSession,
+        () => {
+          setSession(null);
+          setFeedback({ type: "error", message: "Session expired. Please log in again." });
+        },
+      ),
+    [session],
   );
 
   useEffect(() => {
@@ -201,7 +204,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [dayNumber, month, reloadKey, session, today]);
+  }, [api, dayNumber, month, reloadKey, session, today]);
 
   async function handleAuthSubmit(event) {
     event.preventDefault();
