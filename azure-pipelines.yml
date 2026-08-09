@@ -2,6 +2,9 @@ trigger:
   branches:
     include:
       - master
+  tags:
+    include:
+      - v*
 
 pr:
   branches:
@@ -13,7 +16,7 @@ variables:
   dockerRegistryServiceConnection: ghcr
   imageRepositoryApi: bluedr/expenseproject-api
   imageRepositoryWeb: bluedr/expenseproject-web
-  imageTag: $(Build.SourceBranchName)-$(Build.BuildId)
+  imageTag: $(Build.SourceBranchName)
   latestTag: latest
 
 stages:
@@ -57,7 +60,7 @@ stages:
   - stage: Docker
     displayName: Build and push Docker images
     dependsOn: Validate
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
     jobs:
       - job: PushImages
         displayName: Push API and web images
