@@ -50,6 +50,52 @@ To stop the application, press `Ctrl+C`. To run it again in the background:
 docker compose up -d
 ```
 
+## Deploying prebuilt images
+
+For server deployments, use the registry-backed compose file instead of building locally.
+
+1. Create and push a release tag, for example:
+
+   ```bash
+   git tag v1.1.3
+   git push origin v1.1.3
+   ```
+
+2. Wait for the Azure Pipeline to publish these images:
+
+   - `ghcr.io/bluedr/expenseproject-api:v1.1.3`
+   - `ghcr.io/bluedr/expenseproject-web:v1.1.3`
+
+3. On the server, create a `.env` file next to `docker-compose.prod.yml`:
+
+   ```bash
+   IMAGE_TAG=v1.1.3
+   JWT_SECRET_KEY=CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY_32_CHARS_MIN
+   MYSQL_ROOT_PASSWORD=rootpass
+   MYSQL_DATABASE=expenses
+   MYSQL_USER=appuser
+   MYSQL_PASSWORD=apppass
+   TZ=Europe/Athens
+   ```
+
+4. If the package is private, log in to GitHub Container Registry:
+
+   ```bash
+   docker login ghcr.io
+   ```
+
+5. Pull and start the tagged images:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml pull
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+This keeps local development and server deployment separate:
+
+- `docker-compose.yml` builds local images from source
+- `docker-compose.prod.yml` pulls prebuilt images from GHCR
+
 ## Local development setup
 
 ### Requirements
