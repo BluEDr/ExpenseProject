@@ -3,6 +3,8 @@ import "./App.css";
 import logo from "./assets/logo.png";
 import { authRequest, clearSession, createApiClient, loadSession, saveSession } from "./api";
 
+const appVersion = import.meta.env.VITE_APP_VERSION || "dev";
+
 const emptyExpense = {
   amount: "",
   date: todayValue(),
@@ -635,35 +637,40 @@ function App() {
             <p className="muted">{todayLabel}</p>
           </div>
         </div>
-        <div className="menu-anchor">
-          <button
-            type="button"
-            className="burger-button"
-            aria-label="Open account menu"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((value) => !value)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-          {menuOpen ? (
-            <div className="burger-menu">
-              <p className="eyebrow">Account</p>
-              <strong>{session.email}</strong>
-              <span className="muted">Month {formatYearMonth(month)}</span>
-              <button
-                type="button"
-                className="theme-toggle"
-                onClick={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
-              >
-                {theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
-              </button>
-              <button type="button" onClick={handleLogout}>
-                Logout
-              </button>
-            </div>
-          ) : null}
+        <div className="topbar-menu-area">
+          <span className="app-version" aria-label={`Application version ${appVersion}`}>
+            {appVersion}
+          </span>
+          <div className="menu-anchor">
+            <button
+              type="button"
+              className="burger-button"
+              aria-label="Open account menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((value) => !value)}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+            {menuOpen ? (
+              <div className="burger-menu">
+                <p className="eyebrow">Account</p>
+                <strong>{session.email}</strong>
+                <span className="muted">Month {formatYearMonth(month)}</span>
+                <button
+                  type="button"
+                  className="theme-toggle"
+                  onClick={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
+                >
+                  {theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+                </button>
+                <button type="button" onClick={handleLogout}>
+                  Logout
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 

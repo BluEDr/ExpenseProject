@@ -56,6 +56,8 @@ stages:
           - script: npm run build
             displayName: Build frontend
             workingDirectory: web
+            env:
+              VITE_APP_VERSION: $(Build.SourceBranchName)
 
   - stage: Docker
     displayName: Build and push Docker images
@@ -86,13 +88,24 @@ stages:
                 $(latestTag)
 
           - task: Docker@2
-            displayName: Build and push web image
+            displayName: Build web image
             inputs:
-              command: buildAndPush
+              command: build
               containerRegistry: $(dockerRegistryServiceConnection)
               repository: $(imageRepositoryWeb)
               dockerfile: web/Dockerfile
               buildContext: web
+              arguments: --build-arg VITE_APP_VERSION=$(Build.SourceBranchName)
+              tags: |
+                $(imageTag)
+                $(latestTag)
+
+          - task: Docker@2
+            displayName: Push web image
+            inputs:
+              command: push
+              containerRegistry: $(dockerRegistryServiceConnection)
+              repository: $(imageRepositoryWeb)
               tags: |
                 $(imageTag)
                 $(latestTag)

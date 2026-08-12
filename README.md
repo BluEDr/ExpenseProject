@@ -14,14 +14,14 @@ The project contains:
 - Register and sign in with secure access and refresh tokens.
 - Add, edit, and archive expenses and income entries.
 - Create recurring income sources, such as salary or freelance work.
-- Upload attachments to expenses (for example, receipts).
+- Upload attachments to expenses, for example receipts and screenshots.
 - Review monthly balances, daily allowances, and recent activity.
 - Switch between light and dark themes.
 - Keep each user's financial records separate.
 
 ## Quick start with Docker
 
-This is the recommended way to download and run the project. You need [Git](https://git-scm.com/downloads) and [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed.
+This is the easiest way to download and run the project locally. You need [Git](https://git-scm.com/downloads) and [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed.
 
 1. Clone the repository and enter its folder:
 
@@ -30,7 +30,7 @@ This is the recommended way to download and run the project. You need [Git](http
    cd ExpenseProject
    ```
 
-   Alternatively, use **Code → Download ZIP** on the repository page, extract the archive, and open a terminal in the extracted `ExpenseProject` folder.
+   Alternatively, use **Code -> Download ZIP** on the repository page, extract the archive, and open a terminal in the extracted `ExpenseProject` folder.
 
 2. Start the frontend, API, and database:
 
@@ -61,12 +61,19 @@ For server deployments, use the registry-backed compose file instead of building
    git push origin v1.1.3
    ```
 
-2. Wait for the Azure Pipeline to publish these images:
+2. Wait for the Azure Pipeline to publish these public images:
 
    - `ghcr.io/bluedr/expenseproject-api:v1.1.3`
    - `ghcr.io/bluedr/expenseproject-web:v1.1.3`
 
-3. On the server, create a `.env` file next to `docker-compose.prod.yml`:
+3. Clone the repository on the server:
+
+   ```bash
+   git clone https://github.com/BluEDr/ExpenseProject.git
+   cd ExpenseProject
+   ```
+
+4. Create a `.env` file next to `docker-compose.prod.yml`:
 
    ```bash
    IMAGE_TAG=v1.1.3
@@ -78,17 +85,19 @@ For server deployments, use the registry-backed compose file instead of building
    TZ=Europe/Athens
    ```
 
-4. If the package is private, log in to GitHub Container Registry:
-
-   ```bash
-   docker login ghcr.io
-   ```
-
 5. Pull and start the tagged images:
 
    ```bash
    docker compose -f docker-compose.prod.yml pull
    docker compose -f docker-compose.prod.yml up -d
+   ```
+
+6. Check that the services are running:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml ps
+   docker compose -f docker-compose.prod.yml logs api --tail=100
+   docker compose -f docker-compose.prod.yml logs web --tail=100
    ```
 
 This keeps local development and server deployment separate:
@@ -150,7 +159,7 @@ The following settings are used by the API. For development, they are in `api/Ex
 | Setting | Purpose |
 | --- | --- |
 | `ConnectionStrings__Default` | MySQL connection string |
-| `Jwt__SecretKey` | JWT signing key; use a unique random value of at least 32 characters outside local development |
+| `Jwt__SecretKey` | JWT signing key; set this in `.env` or environment variables for deployments |
 | `Jwt__Issuer` / `Jwt__Audience` | JWT issuer and audience values |
 | `Storage__AttachmentsPath` | Folder where uploaded receipt files are stored |
 | `Cors__AllowedOrigins` | Comma-separated permitted frontend origins for deployed environments |
@@ -196,11 +205,12 @@ docker compose logs -f
 
 ```text
 ExpenseProject/
-├── api/Expenses.Api/       # ASP.NET Core API, authentication, data models, and migrations
-├── web/                    # React/Vite user interface
-├── uploads/                # Local receipt attachments (mounted into the API Docker container)
-├── docker-compose.yml      # Frontend, API, and MySQL services
-└── ExpenseProject.sln      # .NET solution
+|-- api/Expenses.Api/       # ASP.NET Core API, authentication, data models, and migrations
+|-- web/                    # React/Vite user interface
+|-- uploads/                # Local receipt attachments (mounted into the API Docker container)
+|-- docker-compose.yml      # Frontend, API, and MySQL services for local development
+|-- docker-compose.prod.yml # Registry-backed deployment services
+`-- ExpenseProject.sln      # .NET solution
 ```
 
 ## Data and reset
